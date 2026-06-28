@@ -4,6 +4,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
+const clientRoutes = require("./routes/clientRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,6 +23,9 @@ app.use("/api/auth", authRoutes);
 
 // Property routes
 app.use("/api/properties", propertyRoutes);
+
+// Client routes
+app.use("/api/clients", clientRoutes);
 
 const startServer = async () => {
 	await connectDB();

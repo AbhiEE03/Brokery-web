@@ -91,9 +91,8 @@ const clientSchema = new mongoose.Schema({
 	},
 });
 
-clientSchema.pre("save", function (next) {
+clientSchema.pre("save", function () {
 	this.updatedAt = Date.now();
-	next();
 });
 
 module.exports = mongoose.model("Client", clientSchema);

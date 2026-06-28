@@ -101,9 +101,8 @@ const propertySchema = new mongoose.Schema({
 	},
 });
 
-propertySchema.pre("save", function (next) {
+propertySchema.pre("save", function () {
 	this.updatedAt = Date.now();
-	next();
 });
 
 module.exports = mongoose.model("Property", propertySchema);
