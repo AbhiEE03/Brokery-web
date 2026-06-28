@@ -1,4 +1,9 @@
 const Client = require("../models/Client");
+const ClientChangeRequest = require("../models/ClientChangeRequest");
+const {
+	DIRECT_EDIT_FIELDS,
+	APPROVAL_REQUIRED_FIELDS,
+} = require("../utils/clientEditRules");
 
 // Generate the next client code in the format CL-000001
 const generateNextClientCode = async () => {
@@ -10,6 +15,28 @@ const generateNextClientCode = async () => {
 
 	const currentNumber = parseInt(lastClient.clientCode.split("-")[1], 10);
 	return `CL-${String(currentNumber + 1).padStart(6, "0")}`;
+};
+
+const flattenPayload = (value, prefix = "") => {
+	const entries = [];
+
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		for (const [key, childValue] of Object.entries(value)) {
+			const nextKey = prefix ? `${prefix}.${key}` : key;
+
+			if (childValue && typeof childValue === "object" && !Array.isArray(childValue)) {
+				entries.push(...flattenPayload(childValue, nextKey));
+			} else {
+				entries.push([nextKey, childValue]);
+			}
+		}
+	}
+
+	return entries;
+};
+
+const getValueByPath = (source, path) => {
+	return path.split(".").reduce((current, key) => current?.[key], source);
 };
 
 // Create a new client and auto-generate a clientCode
@@ -118,6 +145,92 @@ exports.getClientById = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			data: client,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};
+
+// Apply direct edits immediately and queue sensitive ones for admin approval
+exports.updateClient = async (req, res) => {
+	try {
+		const client = await Client.findById(req.params.id);
+
+		if (!client) {
+			return res.status(404).json({
+				success: false,
+				message: "Client not found",
+			});
+		}
+
+		if (
+			req.user.role === "broker" &&
+			client.assignedBroker?.toString() !== req.user._id.toString()
+		) {
+			return res.status(403).json({
+				success: false,
+				message: "You are not authorized to update this client",
+			});
+		}
+
+		const flatFields = flattenPayload(req.body);
+		const directFields = {};
+		const sensitiveFields = {};
+
+		for (const [field, value] of flatFields) {
+			if (DIRECT_EDIT_FIELDS.includes(field)) {
+				directFields[field] = value;
+			} else if (APPROVAL_REQUIRED_FIELDS.includes(field)) {
+				sensitiveFields[field] = value;
+			}
+		}
+
+		if (
+			Object.keys(directFields).length === 0 &&
+			Object.keys(sensitiveFields).length === 0
+		) {
+			return res.status(400).json({
+				success: false,
+				message: "No supported client fields were provided",
+			});
+		}
+
+		let updatedClient = null;
+		let pendingChangeRequest = null;
+
+		if (Object.keys(directFields).length > 0) {
+			updatedClient = await Client.findByIdAndUpdate(
+				req.params.id,
+				{ $set: directFields },
+				{ new: true },
+			);
+		}
+
+		if (Object.keys(sensitiveFields).length > 0) {
+			const currentClient = await Client.findById(req.params.id).lean();
+			const changes = Object.entries(sensitiveFields).map(([field, newValue]) => ({
+				field,
+				oldValue: getValueByPath(currentClient, field),
+				newValue,
+			}));
+
+			pendingChangeRequest = await ClientChangeRequest.create({
+				client: req.params.id,
+				requestedBy: req.user._id,
+				changes,
+			});
+		}
+
+		res.status(200).json({
+			success: true,
+			message: "Client update processed",
+			data: {
+				updated: updatedClient,
+				pending: pendingChangeRequest,
+			},
 		});
 	} catch (error) {
 		res.status(500).json({

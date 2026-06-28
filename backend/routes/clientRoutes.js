@@ -4,6 +4,7 @@ const {
 	createClient,
 	getClients,
 	getClientById,
+	updateClient,
 	deleteClient,
 } = require("../controllers/clientController");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
@@ -16,6 +17,9 @@ router.get("/", verifyToken, getClients);
 
 // Get client by ID
 router.get("/:id", verifyToken, getClientById);
+
+// Update client (direct edits immediately, sensitive edits via change request)
+router.patch("/:id", verifyToken, updateClient);
 
 // Delete client (admin only)
 router.delete("/:id", verifyToken, requireAdmin, deleteClient);
