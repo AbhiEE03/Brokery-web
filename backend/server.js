@@ -7,6 +7,8 @@ const propertyRoutes = require("./routes/propertyRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const changeRequestRoutes = require("./routes/changeRequestRoutes");
 const matchRoutes = require("./routes/matchRoutes");
+const activityRoutes = require("./routes/activityRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +36,12 @@ app.use("/api/change-requests", changeRequestRoutes);
 
 // Match routes
 app.use("/api/matches", matchRoutes);
+
+// Activity routes
+app.use("/api/activity", activityRoutes);
+
+// Analytics routes
+app.use("/api/analytics", analyticsRoutes);
 
 const startServer = async () => {
 	await connectDB();

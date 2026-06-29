@@ -7,9 +7,19 @@ const {
 	deleteProperty,
 } = require("../controllers/propertyController");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const logActivity = require("../middleware/logActivity");
 
 // Create property (any authenticated user)
-router.post("/", verifyToken, createProperty);
+router.post(
+	"/",
+	verifyToken,
+	logActivity(
+		(req, data) => `Created property ${data?.data?.propertyCode || req.body.title || "property"}`,
+		"property",
+		(req, data) => data?.data?._id,
+	),
+	createProperty,
+);
 
 // Get all properties with filters
 router.get("/", verifyToken, getProperties);

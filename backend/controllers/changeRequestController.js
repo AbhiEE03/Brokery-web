@@ -1,5 +1,6 @@
 const Client = require("../models/Client");
 const ClientChangeRequest = require("../models/ClientChangeRequest");
+const { sendChangeRequestResolved } = require("../utils/emailService");
 
 const getValueByPath = (source, path) => {
 	return path.split(".").reduce((current, key) => current?.[key], source);
@@ -119,6 +120,25 @@ exports.resolveChangeRequest = async (req, res) => {
 		changeRequest.resolvedBy = req.user._id;
 		changeRequest.resolvedAt = Date.now();
 		await changeRequest.save();
+
+		try {
+			const requestedByUser = await changeRequest
+				.populate("requestedBy", "name email")
+				.then((doc) => doc.requestedBy);
+
+			if (requestedByUser?.email) {
+				await sendChangeRequestResolved({
+					toEmail: requestedByUser.email,
+					brokerName: requestedByUser.name,
+					entityType: "client",
+					action,
+					adminNote: changeRequest.adminNote,
+					changes: changeRequest.changes,
+				});
+			}
+		} catch (emailError) {
+			console.error("Change request email failed:", emailError.message);
+		}
 
 		res.status(200).json({
 			success: true,
