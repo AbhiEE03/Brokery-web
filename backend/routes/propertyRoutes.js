@@ -4,6 +4,7 @@ const {
 	createProperty,
 	getProperties,
 	getPropertyById,
+	updateProperty,
 	deleteProperty,
 } = require("../controllers/propertyController");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
@@ -26,6 +27,18 @@ router.get("/", verifyToken, getProperties);
 
 // Get property by ID
 router.get("/:id", verifyToken, getPropertyById);
+
+// Update property with direct edit vs approval workflow
+router.patch(
+	"/:id",
+	verifyToken,
+	logActivity(
+		(req) => `Updated property ${req.params.id}`,
+		"property",
+		(req) => req.params.id,
+	),
+	updateProperty,
+);
 
 // Delete property (admin only)
 router.delete("/:id", verifyToken, requireAdmin, deleteProperty);

@@ -1,5 +1,36 @@
 const Property = require("../models/Property");
+const PropertyChangeRequest = require("../models/PropertyChangeRequest");
 const { generateNextCode } = require("../utils/codeGenerator");
+const {
+	DIRECT_EDIT_FIELDS,
+	APPROVAL_REQUIRED_FIELDS,
+} = require("../utils/propertyEditRules");
+
+const flattenPayload = (value, prefix = "") => {
+	const entries = [];
+
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		for (const [key, childValue] of Object.entries(value)) {
+			const nextKey = prefix ? `${prefix}.${key}` : key;
+
+			if (
+				childValue &&
+				typeof childValue === "object" &&
+				!Array.isArray(childValue)
+			) {
+				entries.push(...flattenPayload(childValue, nextKey));
+			} else {
+				entries.push([nextKey, childValue]);
+			}
+		}
+	}
+
+	return entries;
+};
+
+const getValueByPath = (source, path) => {
+	return path.split(".").reduce((current, key) => current?.[key], source);
+};
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
@@ -103,6 +134,82 @@ exports.getPropertyById = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			data: property,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};
+
+// Apply direct property edits immediately and queue sensitive ones for admin approval
+exports.updateProperty = async (req, res) => {
+	try {
+		const property = await Property.findById(req.params.id);
+
+		if (!property) {
+			return res.status(404).json({
+				success: false,
+				message: "Property not found",
+			});
+		}
+
+		const flatFields = flattenPayload(req.body);
+		const directFields = {};
+		const sensitiveFields = {};
+
+		for (const [field, value] of flatFields) {
+			if (DIRECT_EDIT_FIELDS.includes(field)) {
+				directFields[field] = value;
+			} else if (APPROVAL_REQUIRED_FIELDS.includes(field)) {
+				sensitiveFields[field] = value;
+			}
+		}
+
+		if (
+			Object.keys(directFields).length === 0 &&
+			Object.keys(sensitiveFields).length === 0
+		) {
+			return res.status(400).json({
+				success: false,
+				message: "No supported property fields were provided",
+			});
+		}
+
+		let updatedProperty = null;
+		let pendingChangeRequest = null;
+
+		if (Object.keys(directFields).length > 0) {
+			updatedProperty = await Property.findByIdAndUpdate(
+				req.params.id,
+				{ $set: directFields },
+				{ new: true },
+			);
+		}
+
+		if (Object.keys(sensitiveFields).length > 0) {
+			const currentProperty = await Property.findById(req.params.id).lean();
+			const changes = Object.entries(sensitiveFields).map(([field, newValue]) => ({
+				field,
+				oldValue: getValueByPath(currentProperty, field),
+				newValue,
+			}));
+
+			pendingChangeRequest = await PropertyChangeRequest.create({
+				property: req.params.id,
+				requestedBy: req.user._id,
+				changes,
+			});
+		}
+
+		res.status(200).json({
+			success: true,
+			message: "Property update processed",
+			data: {
+				updated: updatedProperty,
+				pending: pendingChangeRequest,
+			},
 		});
 	} catch (error) {
 		res.status(500).json({
