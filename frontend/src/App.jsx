@@ -8,6 +8,7 @@ import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Dashboard from "./pages/Dashboard";
 import ActivityLog from "./pages/ActivityLog";
+import ChangeRequests from "./pages/ChangeRequests";
 
 const PageShell = ({ title, description }) => (
 	<section className="flex min-h-[calc(100vh-3rem)] items-center justify-center p-6 sm:p-8">
@@ -34,22 +35,10 @@ function App() {
 				<Route element={<Sidebar />}>
 					<Route index element={<Navigate to="/dashboard" replace />} />
 					<Route path="/dashboard" element={<Dashboard />} />
-					<Route
-						path="/clients"
-							element={<Clients />}
-						/>
-						<Route
-							path="/clients/:id"
-							element={<ClientDetail />}
-					/>
-					<Route
-						path="/properties"
-							element={<Properties />}
-						/>
-						<Route
-							path="/properties/:id"
-							element={<PropertyDetail />}
-					/>
+					<Route path="/clients" element={<Clients />} />
+					<Route path="/clients/:id" element={<ClientDetail />} />
+					<Route path="/properties" element={<Properties />} />
+					<Route path="/properties/:id" element={<PropertyDetail />} />
 					<Route
 						path="/matches"
 						element={
@@ -59,19 +48,8 @@ function App() {
 							/>
 						}
 					/>
-					<Route
-						path="/change-requests"
-						element={
-							<PageShell
-								title="Change Requests"
-								description="Review pending edits, approve sensitive changes, and keep an audit trail."
-							/>
-						}
-					/>
-					<Route
-						path="/activity-log"
-						element={<ActivityLog />}
-					/>
+					<Route path="/change-requests" element={<ChangeRequests />} />
+					<Route path="/activity-log" element={<ActivityLog />} />
 				</Route>
 			</Route>
 
