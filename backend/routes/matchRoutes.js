@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const {
+	getMatches,
 	createMatch,
 	getMatchesByClient,
 	getMatchesByProperty,
@@ -9,6 +10,7 @@ const {
 } = require("../controllers/matchController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
+router.get("/", verifyToken, getMatches);
 router.post("/", verifyToken, createMatch);
 router.get("/client/:clientId", verifyToken, getMatchesByClient);
 router.get("/property/:propertyId", verifyToken, getMatchesByProperty);

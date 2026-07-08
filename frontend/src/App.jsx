@@ -9,6 +9,7 @@ import PropertyDetail from "./pages/PropertyDetail";
 import Dashboard from "./pages/Dashboard";
 import ActivityLog from "./pages/ActivityLog";
 import ChangeRequests from "./pages/ChangeRequests";
+import Matches from "./pages/Matches";
 
 const PageShell = ({ title, description }) => (
 	<section className="flex min-h-[calc(100vh-3rem)] items-center justify-center p-6 sm:p-8">
@@ -41,12 +42,7 @@ function App() {
 					<Route path="/properties/:id" element={<PropertyDetail />} />
 					<Route
 						path="/matches"
-						element={
-							<PageShell
-								title="Matches"
-								description="Track client-to-property matches and interest levels in one place."
-							/>
-						}
+						element={<Matches />}
 					/>
 					<Route path="/change-requests" element={<ChangeRequests />} />
 					<Route path="/activity-log" element={<ActivityLog />} />

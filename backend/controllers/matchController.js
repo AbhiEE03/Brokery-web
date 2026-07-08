@@ -2,6 +2,29 @@ const Match = require("../models/Match");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
 
+exports.getMatches = async (req, res) => {
+	try {
+		const query = req.user.role === "broker" ? { createdBy: req.user._id } : {};
+
+		const matches = await Match.find(query)
+			.populate("client", "name clientCode phone email")
+			.populate("property", "title propertyCode location pricing status")
+			.populate("createdBy", "name email role")
+			.sort({ createdAt: -1 })
+			.lean();
+
+		res.status(200).json({
+			success: true,
+			data: matches,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};
+
 exports.createMatch = async (req, res) => {
 	try {
 		const { client, property, interestLevel, notes } = req.body;
