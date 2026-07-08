@@ -6,6 +6,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
+import Dashboard from "./pages/Dashboard";
 
 const PageShell = ({ title, description }) => (
 	<section className="flex min-h-[calc(100vh-3rem)] items-center justify-center p-6 sm:p-8">
@@ -31,15 +32,7 @@ function App() {
 			<Route element={<ProtectedRoute />}>
 				<Route element={<Sidebar />}>
 					<Route index element={<Navigate to="/dashboard" replace />} />
-					<Route
-						path="/dashboard"
-						element={
-							<PageShell
-								title="Dashboard"
-								description="Live KPIs, pipeline trends, and broker performance will live here."
-							/>
-						}
-					/>
+					<Route path="/dashboard" element={<Dashboard />} />
 					<Route
 						path="/clients"
 							element={<Clients />}
