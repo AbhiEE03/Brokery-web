@@ -7,6 +7,7 @@ import ClientDetail from "./pages/ClientDetail";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Dashboard from "./pages/Dashboard";
+import ActivityLog from "./pages/ActivityLog";
 
 const PageShell = ({ title, description }) => (
 	<section className="flex min-h-[calc(100vh-3rem)] items-center justify-center p-6 sm:p-8">
@@ -69,12 +70,7 @@ function App() {
 					/>
 					<Route
 						path="/activity-log"
-						element={
-							<PageShell
-								title="Activity Log"
-								description="A chronological record of important actions across the CRM."
-							/>
-						}
+						element={<ActivityLog />}
 					/>
 				</Route>
 			</Route>
