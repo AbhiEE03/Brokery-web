@@ -263,3 +263,44 @@ exports.deleteClient = async (req, res) => {
 		});
 	}
 };
+
+exports.addClientDocument = async (req, res) => {
+	try {
+		const client = await Client.findById(req.params.id);
+
+		if (!client) {
+			return res.status(404).json({
+				success: false,
+				message: "Client not found",
+			});
+		}
+
+		if (!req.file) {
+			return res.status(400).json({
+				success: false,
+				message: "Document file is required",
+			});
+		}
+
+		client.documents = client.documents || [];
+		client.documents.push({
+			name: req.file.originalname,
+			url: req.file.path,
+			type: req.body.type || "other",
+			uploadedAt: new Date(),
+		});
+
+		await client.save();
+
+		res.status(200).json({
+			success: true,
+			message: "Client document uploaded successfully",
+			data: client,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};

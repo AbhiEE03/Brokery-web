@@ -242,3 +242,42 @@ exports.deleteProperty = async (req, res) => {
 		});
 	}
 };
+
+exports.addPropertyImage = async (req, res) => {
+	try {
+		const property = await Property.findById(req.params.id);
+
+		if (!property) {
+			return res.status(404).json({
+				success: false,
+				message: "Property not found",
+			});
+		}
+
+		if (!req.file) {
+			return res.status(400).json({
+				success: false,
+				message: "Image file is required",
+			});
+		}
+
+		property.images = property.images || [];
+		property.images.push({
+			url: req.file.path,
+			uploadedAt: new Date(),
+		});
+
+		await property.save();
+
+		res.status(200).json({
+			success: true,
+			message: "Property image uploaded successfully",
+			data: property,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};

@@ -6,8 +6,10 @@ const {
 	getPropertyById,
 	updateProperty,
 	deleteProperty,
+	addPropertyImage,
 } = require("../controllers/propertyController");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const { uploadImage } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
 
 // Create property (any authenticated user)
@@ -27,6 +29,9 @@ router.get("/", verifyToken, getProperties);
 
 // Get property by ID
 router.get("/:id", verifyToken, getPropertyById);
+
+// Upload property image
+router.post("/:id/images", verifyToken, uploadImage.single("file"), addPropertyImage);
 
 // Update property with direct edit vs approval workflow
 router.patch(

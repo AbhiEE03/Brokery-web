@@ -85,7 +85,17 @@ const propertySchema = new mongoose.Schema({
 			lowercase: true,
 		},
 	},
-	images: [String],
+	images: [
+		{
+			url: {
+				type: String,
+			},
+			uploadedAt: {
+				type: Date,
+				default: Date.now,
+			},
+		},
+	],
 	documents: [String],
 	addedBy: {
 		type: mongoose.Schema.Types.ObjectId,

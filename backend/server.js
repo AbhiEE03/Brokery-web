@@ -26,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 // Property routes
+// Upload endpoints are nested under client and property routes.
 app.use("/api/properties", propertyRoutes);
 
 // Client routes

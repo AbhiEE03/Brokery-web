@@ -6,8 +6,10 @@ const {
 	getClientById,
 	updateClient,
 	deleteClient,
+	addClientDocument,
 } = require("../controllers/clientController");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const { uploadDocument } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
 
 // Create client (admin or broker)
@@ -27,6 +29,9 @@ router.get("/", verifyToken, getClients);
 
 // Get client by ID
 router.get("/:id", verifyToken, getClientById);
+
+// Upload client document
+router.post("/:id/documents", verifyToken, uploadDocument.single("file"), addClientDocument);
 
 // Update client (direct edits immediately, sensitive edits via change request)
 router.patch(
