@@ -19,3 +19,12 @@ export const updateClient = async (id, payload) => {
 	const { data } = await api.patch(`/clients/${id}`, payload);
 	return data;
 };
+
+export const uploadClientDocument = async (clientId, formData) => {
+	const { data } = await api.post(`/clients/${clientId}/documents`, formData, {
+		headers: {
+			"Content-Type": "multipart/form-data",
+		},
+	});
+	return data;
+};

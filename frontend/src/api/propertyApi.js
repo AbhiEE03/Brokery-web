@@ -19,3 +19,12 @@ export const updateProperty = async (id, payload) => {
 	const { data } = await api.patch(`/properties/${id}`, payload);
 	return data;
 };
+
+export const uploadPropertyImage = async (propertyId, formData) => {
+	const { data } = await api.post(`/properties/${propertyId}/images`, formData, {
+		headers: {
+			"Content-Type": "multipart/form-data",
+		},
+	});
+	return data;
+};

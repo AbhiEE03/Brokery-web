@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeAlert, Save } from "lucide-react";
-import { getClientById, updateClient } from "../api/clientApi";
+import { ArrowLeft, BadgeAlert, FileText, Save } from "lucide-react";
+import { getClientById, updateClient, uploadClientDocument } from "../api/clientApi";
 
 const safeLabel = (value) => String(value ?? "").replace(/_/g, " ");
 
@@ -13,6 +13,13 @@ const ClientDetail = () => {
 	const [error, setError] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [pendingApproval, setPendingApproval] = useState(null);
+	const [uploading, setUploading] = useState(false);
+	const [uploadMessage, setUploadMessage] = useState("");
+	const [uploadError, setUploadError] = useState("");
+	const [documentFormData, setDocumentFormData] = useState({
+		file: null,
+		type: "other",
+	});
 	const [formData, setFormData] = useState({
 		phone: "",
 		email: "",
@@ -29,43 +36,43 @@ const ClientDetail = () => {
 		},
 	});
 
+	const loadClient = async ({ setBusy = false, mountedCheck = () => true } = {}) => {
+		if (setBusy) setLoading(true);
+		setError("");
+
+		try {
+			const response = await getClientById(id);
+			if (!mountedCheck()) return;
+
+			const currentClient = response.data;
+			setClient(currentClient);
+			setFormData({
+				phone: currentClient.phone || "",
+				email: currentClient.email || "",
+				notes: currentClient.notes || "",
+				pipelineStage: currentClient.pipelineStage || "",
+				requirements: {
+					city: currentClient.requirements?.city || "",
+					locality: currentClient.requirements?.locality || "",
+					minBudget: currentClient.requirements?.minBudget ?? "",
+					maxBudget: currentClient.requirements?.maxBudget ?? "",
+					minArea: currentClient.requirements?.minArea ?? "",
+					maxArea: currentClient.requirements?.maxArea ?? "",
+					bedrooms: currentClient.requirements?.bedrooms ?? "",
+				},
+			});
+		} catch (err) {
+			if (!mountedCheck()) return;
+			setError(err.response?.data?.message || "Failed to load client.");
+		} finally {
+			if (mountedCheck() && setBusy) setLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		let isMounted = true;
 
-		const loadClient = async () => {
-			setLoading(true);
-			setError("");
-
-			try {
-				const response = await getClientById(id);
-				if (!isMounted) return;
-
-				const currentClient = response.data;
-				setClient(currentClient);
-				setFormData({
-					phone: currentClient.phone || "",
-					email: currentClient.email || "",
-					notes: currentClient.notes || "",
-					pipelineStage: currentClient.pipelineStage || "",
-					requirements: {
-						city: currentClient.requirements?.city || "",
-						locality: currentClient.requirements?.locality || "",
-						minBudget: currentClient.requirements?.minBudget ?? "",
-						maxBudget: currentClient.requirements?.maxBudget ?? "",
-						minArea: currentClient.requirements?.minArea ?? "",
-						maxArea: currentClient.requirements?.maxArea ?? "",
-						bedrooms: currentClient.requirements?.bedrooms ?? "",
-					},
-				});
-			} catch (err) {
-				if (!isMounted) return;
-				setError(err.response?.data?.message || "Failed to load client.");
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-
-		loadClient();
+		loadClient({ setBusy: true, mountedCheck: () => isMounted });
 
 		return () => {
 			isMounted = false;
@@ -139,6 +146,32 @@ const ClientDetail = () => {
 			setError(err.response?.data?.message || "Unable to update client.");
 		} finally {
 			setSaving(false);
+		}
+	};
+
+	const handleDocumentUpload = async (event) => {
+		event.preventDefault();
+		setUploading(true);
+		setUploadError("");
+		setUploadMessage("");
+
+		try {
+			if (!documentFormData.file) {
+				throw new Error("Please choose a file to upload.");
+			}
+
+			const formData = new FormData();
+			formData.append("file", documentFormData.file);
+			formData.append("type", documentFormData.type);
+
+			await uploadClientDocument(id, formData);
+			setDocumentFormData({ file: null, type: "other" });
+			setUploadMessage("Document uploaded successfully.");
+			await loadClient({ setBusy: false });
+		} catch (err) {
+			setUploadError(err.message || err.response?.data?.message || "Unable to upload document.");
+		} finally {
+			setUploading(false);
 		}
 	};
 
@@ -321,6 +354,124 @@ const ClientDetail = () => {
 								</div>
 							:	null}
 						</aside>
+
+						<section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:col-span-2">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
+										Documents
+									</p>
+									<h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+										Uploaded files
+									</h2>
+								</div>
+								<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+									<FileText size={16} />
+									{client.documents?.length || 0} files
+								</div>
+							</div>
+
+							<div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+										Existing documents
+									</h3>
+									<div className="mt-4 space-y-3">
+										{client.documents?.length ? (
+											client.documents.map((document, index) => (
+												<div
+													key={`${document.name}-${index}`}
+													className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+												>
+													<div className="flex flex-wrap items-center justify-between gap-3">
+														<div>
+															<p className="font-medium text-slate-950">{document.name}</p>
+															<p className="mt-1 text-sm text-slate-500">
+																{document.type || "other"} · {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString("en-IN") : "Unknown date"}
+															</p>
+														</div>
+														<a
+															href={document.url}
+															target="_blank"
+															rel="noreferrer"
+															className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+														>
+															Open
+														</a>
+													</div>
+												</div>
+										))
+										) : (
+											<p className="text-sm text-slate-500">No documents uploaded yet.</p>
+										)}
+									</div>
+								</div>
+
+								<form onSubmit={handleDocumentUpload} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+										Upload document
+									</h3>
+									<div className="mt-4 space-y-4">
+										<label className="block">
+											<span className="mb-2 block text-sm font-medium text-slate-600">
+												File
+											</span>
+											<input
+												type="file"
+												accept=".pdf,image/*"
+												onChange={(event) =>
+													setDocumentFormData((current) => ({
+														...current,
+														file: event.target.files?.[0] || null,
+													}))
+												}
+												className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-slate-400"
+											/>
+										</label>
+
+										<label className="block">
+											<span className="mb-2 block text-sm font-medium text-slate-600">
+												Type
+											</span>
+											<select
+												value={documentFormData.type}
+												onChange={(event) =>
+													setDocumentFormData((current) => ({
+														...current,
+														type: event.target.value,
+													}))
+												}
+												className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+											>
+												{["id_proof", "income_proof", "agreement", "other"].map((option) => (
+													<option key={option} value={option}>
+														{option.replace(/_/g, " ")}
+													</option>
+												))}
+											</select>
+										</label>
+
+										<button
+											type="submit"
+											disabled={uploading}
+											className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+										>
+											{uploading ? "Uploading..." : "Upload Document"}
+										</button>
+									</div>
+									{uploadMessage ? (
+										<div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+											{uploadMessage}
+										</div>
+									) : null}
+									{uploadError ? (
+										<div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+											{uploadError}
+										</div>
+									) : null}
+								</form>
+							</div>
+						</section>
 					</div>
 				:	null}
 			</div>
