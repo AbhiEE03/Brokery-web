@@ -13,7 +13,7 @@ const seedUsers = [
 	{
 		name: "Admin",
 		email: "admin@brokery.com",
-		password: "Admin@Abhi",
+		password: "Admin@DEMO_contact",
 		role: "admin",
 	},
 	{
