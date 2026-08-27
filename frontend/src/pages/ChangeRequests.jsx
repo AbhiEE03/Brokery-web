@@ -9,18 +9,48 @@ import {
 const entityTypeOptions = ["all", "client", "property"];
 const statusOptions = ["pending", "approved", "rejected"];
 
-const formatValue = (value) => {
+const formatValue = (value, field = "") => {
 	if (value === null || value === undefined || value === "") return "—";
 	if (typeof value === "object") return JSON.stringify(value);
+	const isCurrency =
+		/budget|price|Budget|Price/.test(field);
+	if (isCurrency && !isNaN(Number(value))) {
+		return Number(value).toLocaleString("en-IN", {
+			style: "currency",
+			currency: "INR",
+			maximumFractionDigits: 0,
+		});
+	}
 	return String(value);
+};
+
+const FIELD_LABELS = {
+	pipelineStage: "Pipeline Stage",
+	"requirements.city": "City",
+	"requirements.minBudget": "Min Budget",
+	"requirements.maxBudget": "Max Budget",
+	"requirements.minArea": "Min Area (sq ft)",
+	"requirements.maxArea": "Max Area (sq ft)",
+	"requirements.bedrooms": "Bedrooms",
+	"requirements.propertyType": "Property Type",
+	askingPrice: "Asking Price",
+	"location.city": "City",
+	"location.locality": "Locality",
 };
 
 const formatLabel = (value) => {
 	if (!value) return "Unknown";
+	if (FIELD_LABELS[value]) return FIELD_LABELS[value];
+	// Fallback: split dot-notation, split camelCase, capitalise each word
 	return value
-		.replaceAll(".", " ")
-		.replaceAll("_", " ")
-		.replace(/\b\w/g, (letter) => letter.toUpperCase());
+		.split(".")
+		.map((segment) =>
+			segment
+				.replace(/([A-Z])/g, " $1")
+				.replace(/^./, (c) => c.toUpperCase())
+				.trim(),
+		)
+		.join(" ");
 };
 
 const formatDate = (value) => {
@@ -177,18 +207,18 @@ const ChangeRequests = () => {
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Approval queue
+							Pending approvals
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
 							Change Requests
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Review requested edits, compare old and new values, and approve or
-							reject sensitive updates.
+							Brokers can't change pipeline stage or budget directly. Those edits
+							land here for you to review.
 						</p>
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">
-						{isAdmin ? "Admin review" : "My requests"}
+						{isAdmin ? "My queue" : "My requests"}
 					</div>
 				</header>
 
@@ -304,13 +334,13 @@ const ChangeRequests = () => {
 															</div>
 															<div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
 																<span className="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-700">
-																	{formatValue(change.oldValue)}
+																	{formatValue(change.oldValue, change.field)}
 																</span>
 																<span className="font-semibold text-slate-400">
 																	→
 																</span>
 																<span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
-																	{formatValue(change.newValue)}
+																	{formatValue(change.newValue, change.field)}
 																</span>
 															</div>
 														</div>

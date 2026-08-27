@@ -107,20 +107,29 @@ const Clients = () => {
 		}
 	};
 
+	const stageBadgeClass = {
+		lead: "bg-blue-50 text-blue-700",
+		contacted: "bg-yellow-50 text-yellow-700",
+		site_visit: "bg-purple-50 text-purple-700",
+		negotiation: "bg-orange-50 text-orange-700",
+		closed: "bg-green-50 text-green-700",
+		lost: "bg-red-50 text-red-700",
+	};
+
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Client records
+							Clients
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
 							Clients
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Search, filter, and open any client to review pipeline stage,
-							requirements, and edit history.
+							Your full client list. Click any row to see details, edit info, or
+							check pending approvals.
 						</p>
 					</div>
 
@@ -265,7 +274,9 @@ const Clients = () => {
 												{client.phone}
 											</td>
 											<td className="px-6 py-4 text-sm">
-												<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+												<span
+													className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${stageBadgeClass[client.pipelineStage] || "bg-slate-100 text-slate-600"}`}
+												>
 													{client.pipelineStage?.replace("_", " ")}
 												</span>
 											</td>

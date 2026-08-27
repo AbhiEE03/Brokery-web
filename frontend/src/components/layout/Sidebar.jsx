@@ -39,7 +39,7 @@ const Sidebar = () => {
 							<p className="text-xs uppercase tracking-[0.28em] text-slate-300">
 								Brokery
 							</p>
-							<h1 className="text-lg font-semibold">CRM Portal</h1>
+							<h1 className="text-lg font-semibold">Real Estate CRM</h1>
 						</div>
 					</div>
 

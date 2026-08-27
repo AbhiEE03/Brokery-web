@@ -151,14 +151,13 @@ const ActivityLog = () => {
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Activity records
+							Activity
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
 							Activity Log
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Review recent CRM actions, filter by entity type, and inspect who
-							performed each change.
+							Everything that's happened in the CRM, newest first.
 						</p>
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">

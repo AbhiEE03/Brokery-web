@@ -167,7 +167,7 @@ const Dashboard = () => {
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-teal-900 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-200">
-							Brokerage analytics
+							Overview
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
 							Dashboard
@@ -179,7 +179,7 @@ const Dashboard = () => {
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 backdrop-blur">
 						<BarChart3 size={18} />
-						Admin analytics
+						Analytics
 					</div>
 				</header>
 
@@ -231,7 +231,7 @@ const Dashboard = () => {
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
 								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
-									Deals by month
+									Monthly closings
 								</p>
 								<h3 className="mt-1 text-xl font-semibold text-slate-950">
 									Closed deals trend
@@ -265,7 +265,7 @@ const Dashboard = () => {
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
 								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
-									Pipeline distribution
+									Pipeline breakdown
 								</p>
 								<h3 className="mt-1 text-xl font-semibold text-slate-950">
 									Clients per stage
@@ -307,7 +307,7 @@ const Dashboard = () => {
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
 								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
-									Broker performance
+									Team performance
 								</p>
 								<h3 className="mt-1 text-xl font-semibold text-slate-950">
 									Closed deals per broker

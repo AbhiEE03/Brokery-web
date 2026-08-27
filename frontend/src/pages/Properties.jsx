@@ -91,20 +91,25 @@ const Properties = () => {
 		}
 	};
 
+	const statusBadgeClass = {
+		available: "bg-green-50 text-green-700",
+		under_negotiation: "bg-orange-50 text-orange-700",
+		sold: "bg-slate-100 text-slate-500",
+	};
+
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Inventory
+							Properties
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
 							Properties
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Filter listings by city, type, and status, then open any property
-							for details or editing.
+							All listings in one place. Filter by city, type, or status.
 						</p>
 					</div>
 
@@ -319,7 +324,9 @@ const Properties = () => {
 											{property.title}
 										</h3>
 									</div>
-									<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+									<span
+										className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusBadgeClass[property.status] || "bg-slate-100 text-slate-600"}`}
+									>
 										{property.status?.replace("_", " ")}
 									</span>
 								</div>

@@ -125,13 +125,13 @@ const Matches = () => {
 				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Match records
+							Matches
 						</p>
 						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
 							Matches
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Review client-to-property links, broker ownership, and interest levels in one place.
+							Client-property links your team has created, with interest levels and broker ownership.
 						</p>
 					</div>
 

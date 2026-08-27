@@ -11,6 +11,7 @@ const Login = () => {
 	const [formData, setFormData] = useState({ email: "", password: "" });
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 
 	const handleChange = (event) => {
 		const { name, value } = event.target;
@@ -47,18 +48,24 @@ const Login = () => {
 					</div>
 
 					<h1 className="mt-8 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
-						Brokerage operations, organized for speed and control.
+						Built for brokers who close deals, not fill spreadsheets.
 					</h1>
 					<p className="mt-4 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-						Sign in to manage clients, properties, approvals, and activity from
-						one secure dashboard.
+						Manage your pipeline, track clients, and get sensitive changes
+						approved - without chasing your admin on WhatsApp.
 					</p>
 
 					<div className="mt-10 grid gap-4 sm:grid-cols-3">
 						{[
-							["RBAC", "Role-aware access for admin and broker workflows"],
-							["Approvals", "Sensitive edits move through change requests"],
-							["Analytics", "Track pipeline and performance in real time"],
+							["RBAC", "Admins and brokers see only what's relevant to them"],
+							[
+								"Edit approvals",
+								"Budget and stage changes go to admin before applying",
+							],
+							[
+								"Live dashboard",
+								"Closed deals, broker stats, and city inventory at a glance",
+							],
 						].map(([title, description]) => (
 							<div
 								key={title}
@@ -115,7 +122,7 @@ const Login = () => {
 								<div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 focus-within:border-emerald-400/70">
 									<LockKeyhole size={18} className="shrink-0 text-slate-400" />
 									<input
-										type="password"
+										type={showPassword ? "text" : "password"}
 										name="password"
 										value={formData.password}
 										onChange={handleChange}
@@ -123,6 +130,13 @@ const Login = () => {
 										className="w-full bg-transparent text-white outline-none placeholder:text-slate-500"
 										required
 									/>
+									<button
+										type="button"
+										onClick={() => setShowPassword((p) => !p)}
+										className="shrink-0 text-xs font-medium text-slate-400 hover:text-slate-200"
+									>
+										{showPassword ? "Hide" : "Show"}
+									</button>
 								</div>
 							</label>
 
