@@ -38,7 +38,7 @@ router.patch(
 	"/:id",
 	verifyToken,
 	logActivity(
-		(req) => `Updated client ${req.params.id}`,
+		(req, data) => `Updated client ${data?.data?.name || req.params.id}`,
 		"client",
 		(req) => req.params.id,
 	),
