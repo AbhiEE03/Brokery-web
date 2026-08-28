@@ -513,7 +513,7 @@ const clientSeeds = [
 		phone: "9876543210",
 		email: "rahul.sharma@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 0,
+		createdAt: new Date("2026-06-05"),
 		requirements: {
 			propertyType: "flat",
 			city: "Delhi",
@@ -603,7 +603,7 @@ const clientSeeds = [
 		phone: "9876543215",
 		email: "deepa.menon@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 1,
+		createdAt: new Date("2026-07-08"),
 		requirements: {
 			propertyType: "flat",
 			city: "Bangalore",
@@ -621,7 +621,7 @@ const clientSeeds = [
 		phone: "9876543216",
 		email: "karan.malhotra@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 2,
+		createdAt: new Date("2026-06-18"),
 		requirements: {
 			propertyType: "villa",
 			city: "Mumbai",
@@ -639,7 +639,7 @@ const clientSeeds = [
 		phone: "9876543217",
 		email: "ananya.iyer@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 3,
+		createdAt: new Date("2026-05-12"),
 		requirements: {
 			propertyType: "plot",
 			city: "Delhi",
@@ -657,7 +657,7 @@ const clientSeeds = [
 		phone: "9876543218",
 		email: "sameer.khan@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 4,
+		createdAt: new Date("2026-08-03"),
 		requirements: {
 			propertyType: "commercial",
 			city: "Hyderabad",
@@ -675,7 +675,7 @@ const clientSeeds = [
 		phone: "9876543219",
 		email: "pooja.bansal@example.com",
 		pipelineStage: "closed",
-		monthsAgo: 5,
+		createdAt: new Date("2026-04-22"),
 		requirements: {
 			propertyType: "flat",
 			city: "Mumbai",
@@ -847,14 +847,14 @@ const seed = async () => {
 		console.log("Seeding clients...");
 		const clientsToInsert = clientSeeds.map((clientSeed, index) => {
 			const broker = brokers[index % brokers.length];
-			const createdAt =
-				clientSeed.monthsAgo === null ?
-					new Date()
-				:	monthsAgo(clientSeed.monthsAgo, 7);
+		const createdAt =
+				clientSeed.createdAt ? clientSeed.createdAt
+				: clientSeed.monthsAgo === null ? new Date()
+				: monthsAgo(clientSeed.monthsAgo, 7);
 			const updatedAt =
-				clientSeed.monthsAgo === null ?
-					new Date()
-				:	monthsAgo(clientSeed.monthsAgo);
+				clientSeed.createdAt ? clientSeed.createdAt
+				: clientSeed.monthsAgo === null ? new Date()
+				: monthsAgo(clientSeed.monthsAgo);
 
 			return {
 				clientCode: buildClientCode(index),
