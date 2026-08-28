@@ -209,17 +209,13 @@ const ChangeRequests = () => {
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
-				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+				<header className="mb-6 flex flex-col gap-1 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Pending approvals
-						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
 							Change Requests
 						</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Brokers can't change pipeline stage or budget directly. Those edits
-							land here for you to review.
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
+							Brokers can't change pipeline stage or budget directly. Those edits land here for you to review.
 						</p>
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">
@@ -227,11 +223,11 @@ const ChangeRequests = () => {
 					</div>
 				</header>
 
-				<div className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr] lg:items-center lg:p-5">
+				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr] lg:items-center lg:p-5">
 					<select
 						value={entityType}
 						onChange={(event) => setEntityType(event.target.value)}
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{entityTypeOptions.map((option) => (
 							<option key={option} value={option}>
@@ -240,21 +236,21 @@ const ChangeRequests = () => {
 						))}
 					</select>
 
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 focus-within:border-slate-400">
 						<input
 							type="date"
 							value={startDate}
 							onChange={(event) => setStartDate(event.target.value)}
-							className="w-full bg-transparent text-sm text-slate-950 outline-none"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
 
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 focus-within:border-slate-400">
 						<input
 							type="date"
 							value={endDate}
 							onChange={(event) => setEndDate(event.target.value)}
-							className="w-full bg-transparent text-sm text-slate-950 outline-none"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
 				</div>
@@ -265,10 +261,10 @@ const ChangeRequests = () => {
 					</div>
 				:	null}
 
-				<div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+				<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
 					<div className="overflow-x-auto">
 						<table className="min-w-full divide-y divide-slate-200">
-							<thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+							<thead className="bg-slate-50 dark:bg-slate-700/50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 								<tr>
 									<th className="px-6 py-4">Request</th>
 									<th className="px-6 py-4">Details</th>
@@ -276,11 +272,11 @@ const ChangeRequests = () => {
 									<th className="px-6 py-4">Status</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-slate-100 bg-white">
+							<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 								{loading ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={4}
 										>
 											Loading change requests...
@@ -289,7 +285,7 @@ const ChangeRequests = () => {
 								: requests.length === 0 ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={4}
 										>
 											No change requests found.
@@ -298,53 +294,53 @@ const ChangeRequests = () => {
 								:	requests.map((request) => (
 										<tr
 											key={request._id}
-											className="align-top transition hover:bg-slate-50"
+											className="align-top transition hover:bg-slate-50 dark:hover:bg-slate-700/30"
 										>
 											<td className="px-6 py-4">
 												<div className="flex flex-col gap-3">
 													<div className="flex flex-wrap items-center gap-2">
-														<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+														<span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
 															{renderEntityType(request)}
 														</span>
 														{request.status ?
 															<span
 																className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
 																	request.status === "approved" ?
-																		"bg-emerald-50 text-emerald-700"
+																		"bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
 																	: request.status === "rejected" ?
-																		"bg-rose-50 text-rose-700"
-																	:	"bg-amber-50 text-amber-700"
+																		"bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400"
+																	:	"bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
 																}`}
 															>
 																{request.status}
 															</span>
 														:	null}
 													</div>
-													<div className="text-sm text-slate-500">
+													<div className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
 														{request.client?.name ||
 															request.property?.title ||
 															"Unknown entity"}
 													</div>
 												</div>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
 												<div className="flex flex-col gap-3">
 													{(request.changes || []).map((change) => (
 														<div
 															key={`${request._id}-${change.field}`}
-															className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+															className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3"
 														>
-															<div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+															<div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 																{formatLabel(change.field)}
 															</div>
 															<div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-																<span className="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-700">
+																<span className="rounded-full bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-3 py-1 font-medium text-rose-700 dark:text-rose-400">
 																	{formatValue(change.oldValue, change.field)}
 																</span>
 																<span className="font-semibold text-slate-400">
 																	→
 																</span>
-																<span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
+																<span className="rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-1 font-medium text-emerald-700 dark:text-emerald-400">
 																	{formatValue(change.newValue, change.field)}
 																</span>
 															</div>
@@ -352,17 +348,17 @@ const ChangeRequests = () => {
 													))}
 												</div>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
-												<div className="font-medium text-slate-950">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+												<div className="font-medium text-slate-950 dark:text-white">
 													{request.requestedBy?.name ||
 														request.requestedBy?.email ||
 														"Unknown user"}
 												</div>
-												<div className="mt-1 text-slate-500">
+												<div className="mt-1 text-slate-500 dark:text-slate-400">
 													{formatDate(request.createdAt)}
 												</div>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
 												{isAdmin ?
 													request.status === "pending" ?
 														<div className="flex flex-col gap-2">
@@ -390,7 +386,7 @@ const ChangeRequests = () => {
 															</button>
 														</div>
 													:	<span className="text-slate-400">Resolved</span>
-												:	<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+												:	<span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
 														{request.status || "pending"}
 													</span>
 												}
@@ -402,8 +398,8 @@ const ChangeRequests = () => {
 						</table>
 					</div>
 
-					<div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
-						<p className="text-sm text-slate-600">
+					<div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-6 py-4">
+						<p className="text-sm text-slate-600 dark:text-slate-400">
 							Page {pagination.page} of {pagination.pages || 1}
 						</p>
 						<div className="flex items-center gap-2">
@@ -416,7 +412,7 @@ const ChangeRequests = () => {
 									}))
 								}
 								disabled={pagination.page <= 1}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<ChevronLeft size={16} />
 								Prev
@@ -430,7 +426,7 @@ const ChangeRequests = () => {
 									}))
 								}
 								disabled={pagination.page >= (pagination.pages || 1)}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								Next
 								<ChevronRight size={16} />

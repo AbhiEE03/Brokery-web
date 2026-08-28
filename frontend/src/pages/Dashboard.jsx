@@ -14,10 +14,6 @@ import {
 import {
 	AlertCircle,
 	BarChart3,
-	Building2,
-	CircleDollarSign,
-	TrendingUp,
-	Users,
 } from "lucide-react";
 import {
 	getBrokerPerformance,
@@ -123,26 +119,22 @@ const Dashboard = () => {
 		{
 			label: "Total Clients",
 			value: summary?.totalClients,
-			icon: Users,
-			tone: "emerald",
+			borderClass: "border-l-blue-500",
 		},
 		{
 			label: "Total Properties",
 			value: totalProperties,
-			icon: Building2,
-			tone: "slate",
+			borderClass: "border-l-emerald-500",
 		},
 		{
 			label: "Closed Deals",
 			value: summary?.closedDeals,
-			icon: CircleDollarSign,
-			tone: "teal",
+			borderClass: "border-l-orange-500",
 		},
 		{
 			label: "Active Brokers",
 			value: activeBrokers,
-			icon: TrendingUp,
-			tone: "amber",
+			borderClass: "border-l-purple-500",
 		},
 	];
 
@@ -164,20 +156,16 @@ const Dashboard = () => {
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
-				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-teal-900 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+				<header className="mb-6 flex flex-col gap-1 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-200">
-							Overview
-						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
 							Dashboard
 						</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-							Live KPI cards, pipeline trends, broker performance, and city
-							inventory pulled from the analytics API.
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							Live KPI cards, pipeline trends, broker performance, and city inventory pulled from the analytics API.
 						</p>
 					</div>
-					<div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 backdrop-blur">
+					<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100">
 						<BarChart3 size={18} />
 						Analytics
 					</div>
@@ -193,62 +181,46 @@ const Dashboard = () => {
 				:	null}
 
 				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-					{stats.map((stat) => {
-						const Icon = stat.icon;
-
-						return (
-							<div
-								key={stat.label}
-								className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm"
-							>
-								<div className="flex items-start justify-between gap-4">
-									<div>
-										<p className="text-sm font-medium text-slate-500">
-											{stat.label}
-										</p>
-										<h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-											{loading ? "--" : formatNumber(stat.value)}
-										</h2>
-									</div>
-									<div
-										className={`rounded-2xl p-3 ${
-											stat.tone === "emerald" ? "bg-emerald-50 text-emerald-700"
-											: stat.tone === "teal" ? "bg-teal-50 text-teal-700"
-											: stat.tone === "amber" ? "bg-amber-50 text-amber-700"
-											: "bg-slate-100 text-slate-700"
-										}`}
-									>
-										<Icon size={20} />
-									</div>
-								</div>
+					{stats.map((stat) => (
+						<div
+							key={stat.label}
+							className={`rounded-r-xl bg-white p-5 shadow-sm border-l-4 ${stat.borderClass} dark:bg-slate-800`}
+						>
+							<div>
+								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+									{stat.label}
+								</p>
+								<h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
+									{loading ? "--" : formatNumber(stat.value)}
+								</h2>
 							</div>
-						);
-					})}
+						</div>
+					))}
 				</div>
 
 				<div className="grid gap-6 xl:grid-cols-2">
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+					<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
+								<p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
 									Monthly closings
 								</p>
-								<h3 className="mt-1 text-xl font-semibold text-slate-950">
+								<h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
 									Closed deals trend
 								</h3>
 							</div>
 						</div>
 						<div className="h-80">
 							{loading ?
-								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500">
+								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading deals chart...
 								</div>
 							:	<ResponsiveContainer width="100%" height="100%">
 									<BarChart data={dealsChartData}>
-										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-										<XAxis dataKey="name" tickLine={false} axisLine={false} />
-										<YAxis tickLine={false} axisLine={false} />
-										<Tooltip />
+										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
+										<XAxis dataKey="name" tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+										<YAxis tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
 										<Bar
 											dataKey="count"
 											fill="#0f766e"
@@ -261,20 +233,20 @@ const Dashboard = () => {
 						</div>
 					</div>
 
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+					<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
+								<p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
 									Pipeline breakdown
 								</p>
-								<h3 className="mt-1 text-xl font-semibold text-slate-950">
+								<h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
 									Clients per stage
 								</h3>
 							</div>
 						</div>
 						<div className="h-80">
 							{loading ?
-								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500">
+								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading pipeline chart...
 								</div>
 							:	<ResponsiveContainer width="100%" height="100%">
@@ -294,7 +266,7 @@ const Dashboard = () => {
 												/>
 											))}
 										</Pie>
-										<Tooltip />
+										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
 									</PieChart>
 								</ResponsiveContainer>
 							}
@@ -303,21 +275,21 @@ const Dashboard = () => {
 				</div>
 
 				<div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+					<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
+								<p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
 									Team performance
 								</p>
-								<h3 className="mt-1 text-xl font-semibold text-slate-950">
+								<h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
 									Closed deals per broker
 								</h3>
 							</div>
 						</div>
-						<div className="overflow-hidden rounded-[1.5rem] border border-slate-200">
+						<div className="overflow-hidden rounded-[1.5rem] border border-slate-200 dark:border-slate-700">
 							<div className="overflow-x-auto">
-								<table className="min-w-full divide-y divide-slate-200 text-sm">
-									<thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+								<table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+									<thead className="bg-slate-50 dark:bg-slate-700/50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										<tr>
 											<th className="px-4 py-3">Broker</th>
 											<th className="px-4 py-3">Assigned</th>
@@ -325,31 +297,31 @@ const Dashboard = () => {
 											<th className="px-4 py-3">Conversion</th>
 										</tr>
 									</thead>
-									<tbody className="divide-y divide-slate-100 bg-white">
+									<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 										{loading ?
 											<tr>
-												<td className="px-4 py-6 text-slate-500" colSpan={4}>
+												<td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={4}>
 													Loading broker stats...
 												</td>
 											</tr>
 										: brokerPerformance.length === 0 ?
 											<tr>
-												<td className="px-4 py-6 text-slate-500" colSpan={4}>
+												<td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={4}>
 													No broker data available.
 												</td>
 											</tr>
 										:	brokerPerformance.map((broker, index) => (
 												<tr key={broker._id || broker.brokerName || index}>
-													<td className="px-4 py-4 font-medium text-slate-950">
+													<td className="px-4 py-4 font-medium text-slate-950 dark:text-white">
 														{broker.brokerName || "Unassigned"}
 													</td>
-													<td className="px-4 py-4 text-slate-600">
+													<td className="px-4 py-4 text-slate-600 dark:text-slate-300">
 														{formatNumber(broker.total)}
 													</td>
-													<td className="px-4 py-4 text-slate-600">
+													<td className="px-4 py-4 text-slate-600 dark:text-slate-300">
 														{formatNumber(broker.closed)}
 													</td>
-													<td className="px-4 py-4 text-slate-600">
+													<td className="px-4 py-4 text-slate-600 dark:text-slate-300">
 														{broker.conversionRate != null ?
 															`${broker.conversionRate}%`
 														:	"0%"}
@@ -363,20 +335,20 @@ const Dashboard = () => {
 						</div>
 					</div>
 
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+					<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
 						<div className="mb-5 flex items-center justify-between gap-3">
 							<div>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
+								<p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
 									Inventory by city
 								</p>
-								<h3 className="mt-1 text-xl font-semibold text-slate-950">
+								<h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
 									Properties by city
 								</h3>
 							</div>
 						</div>
 						<div className="h-[25rem]">
 							{loading ?
-								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500">
+								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading city chart...
 								</div>
 							:	<ResponsiveContainer width="100%" height="100%">
@@ -385,16 +357,17 @@ const Dashboard = () => {
 										layout="vertical"
 										margin={{ left: 20 }}
 									>
-										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-										<XAxis type="number" tickLine={false} axisLine={false} />
+										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
+										<XAxis type="number" tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
 										<YAxis
 											dataKey="name"
 											type="category"
 											tickLine={false}
 											axisLine={false}
 											width={96}
+											tick={{fill: '#94a3b8'}}
 										/>
-										<Tooltip />
+										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
 										<Bar
 											dataKey="count"
 											fill="#0f172a"

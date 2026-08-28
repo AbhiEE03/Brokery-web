@@ -153,30 +153,30 @@ const PropertyDetail = () => {
 				<button
 					type="button"
 					onClick={() => navigate("/properties")}
-					className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+					className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 shadow-sm transition hover:bg-slate-50 dark:hover:bg-slate-700/50"
 				>
 					<ArrowLeft size={18} />
 					Back to Properties
 				</button>
 
 				{loading ?
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+					<div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-sm text-slate-500 dark:text-slate-400 shadow-sm">
 						Loading property details...
 					</div>
 				: error ?
-					<div className="rounded-[2rem] border border-rose-200 bg-rose-50 p-8 text-sm text-rose-700 shadow-sm">
+					<div className="rounded-[2rem] border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-8 text-sm text-rose-700 dark:text-rose-400 shadow-sm">
 						{error}
 					</div>
 				: property ?
 					<div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-						<article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+						<article className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8">
 							<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
 								Property profile
 							</p>
-							<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+							<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
 								{property.title}
 							</h1>
-							<p className="mt-2 text-sm text-slate-500">
+							<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
 								{property.propertyCode}
 							</p>
 
@@ -196,12 +196,12 @@ const PropertyDetail = () => {
 								].map(([label, value]) => (
 									<div
 										key={label}
-										className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+										className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 p-4"
 									>
-										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 											{label}
 										</p>
-										<p className="mt-2 text-sm font-medium text-slate-950">
+										<p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">
 											{value || "Not specified"}
 										</p>
 									</div>
@@ -209,18 +209,18 @@ const PropertyDetail = () => {
 							</div>
 						</article>
 
-						<aside className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-							<h2 className="text-xl font-semibold text-slate-950">
+						<aside className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8">
+							<h2 className="text-xl font-semibold text-slate-950 dark:text-white">
 								Edit property
 							</h2>
-							<p className="mt-2 text-sm leading-6 text-slate-600">
+							<p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
 								Use this form to update the main property details and keep the
 								inventory current.
 							</p>
 
 							<form className="mt-6 space-y-4" onSubmit={handleSubmit}>
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Title
 									</span>
 									<input
@@ -228,13 +228,13 @@ const PropertyDetail = () => {
 										name="title"
 										value={formData.title}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 										required
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Property Type
 									</span>
 									<input
@@ -242,12 +242,12 @@ const PropertyDetail = () => {
 										name="propertyType"
 										value={formData.propertyType}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Status
 									</span>
 									<input
@@ -255,12 +255,12 @@ const PropertyDetail = () => {
 										name="status"
 										value={formData.status}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Asking Price
 									</span>
 									<input
@@ -268,12 +268,12 @@ const PropertyDetail = () => {
 										name="pricing.askingPrice"
 										value={formData.pricing.askingPrice}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										City
 									</span>
 									<input
@@ -281,12 +281,12 @@ const PropertyDetail = () => {
 										name="location.city"
 										value={formData.location.city}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Locality
 									</span>
 									<input
@@ -294,12 +294,12 @@ const PropertyDetail = () => {
 										name="location.locality"
 										value={formData.location.locality}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Sector
 									</span>
 									<input
@@ -307,12 +307,12 @@ const PropertyDetail = () => {
 										name="location.sector"
 										value={formData.location.sector}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600">
+									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 										Pincode
 									</span>
 									<input
@@ -320,14 +320,14 @@ const PropertyDetail = () => {
 										name="location.pincode"
 										value={formData.location.pincode}
 										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 									/>
 								</label>
 
 								<button
 									type="submit"
 									disabled={saving}
-									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
 								>
 									<Save size={18} />
 									{saving ? "Saving..." : "Save Changes"}
@@ -335,31 +335,31 @@ const PropertyDetail = () => {
 							</form>
 
 							{notice ?
-								<div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+								<div className="mt-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-800 dark:text-amber-400">
 									{notice}
 								</div>
 							:	null}
 						</aside>
 
-						<section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:col-span-2">
+						<section className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8 xl:col-span-2">
 							<div className="flex flex-wrap items-center justify-between gap-3">
 								<div>
 									<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
 										Images
 									</p>
-									<h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+									<h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
 										Property images
 									</h2>
 								</div>
-								<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+								<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
 									<Image size={16} />
 									{property.images?.length || 0} images
 								</div>
 							</div>
 
 							<div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+								<div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 p-4">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Existing images
 									</h3>
 									<div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -372,7 +372,7 @@ const PropertyDetail = () => {
 														href={imageUrl}
 														target="_blank"
 														rel="noreferrer"
-														className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+														className="group overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
 													>
 														<img
 															src={imageUrl}
@@ -383,43 +383,43 @@ const PropertyDetail = () => {
 												);
 											})
 										) : (
-											<p className="text-sm text-slate-500">No images uploaded yet.</p>
+											<p className="text-sm text-slate-500 dark:text-slate-400">No images uploaded yet.</p>
 										)}
 									</div>
 								</div>
 
-								<form onSubmit={handleImageUpload} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+								<form onSubmit={handleImageUpload} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Upload image
 									</h3>
 									<div className="mt-4 space-y-4">
 										<label className="block">
-											<span className="mb-2 block text-sm font-medium text-slate-600">
+											<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 												Image file
 											</span>
 											<input
 												type="file"
 												accept="image/*"
 												onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-												className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-slate-400"
+												className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 dark:bg-slate-700 dark:file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-slate-400"
 											/>
 										</label>
 
 										<button
 											type="submit"
 											disabled={uploading}
-											className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+											className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
 										>
 											{uploading ? "Uploading..." : "Upload Image"}
 										</button>
 									</div>
 									{uploadMessage ? (
-										<div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+										<div className="mt-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 text-sm text-emerald-700 dark:text-emerald-400">
 											{uploadMessage}
 										</div>
 									) : null}
 									{uploadError ? (
-										<div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+										<div className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-4 text-sm text-rose-700 dark:text-rose-400">
 											{uploadError}
 										</div>
 									) : null}

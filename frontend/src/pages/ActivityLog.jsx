@@ -157,15 +157,12 @@ const ActivityLog = () => {
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
-				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+				<header className="mb-6 flex flex-col gap-1 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Activity
-						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
 							Activity Log
 						</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
 							Everything that's happened in the CRM, newest first.
 						</p>
 					</div>
@@ -175,11 +172,11 @@ const ActivityLog = () => {
 					</div>
 				</header>
 
-				<div className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr] lg:items-center lg:p-5">
+				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm lg:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr] lg:items-center lg:p-5">
 					<select
 						value={entityType}
 						onChange={(event) => setEntityType(event.target.value)}
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{entityTypeOptions.map((option) => (
 							<option key={option} value={option}>
@@ -188,21 +185,21 @@ const ActivityLog = () => {
 						))}
 					</select>
 
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 focus-within:border-slate-400">
 						<input
 							type="date"
 							value={startDate}
 							onChange={(event) => setStartDate(event.target.value)}
-							className="w-full bg-transparent text-sm text-slate-950 outline-none"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
 
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 focus-within:border-slate-400">
 						<input
 							type="date"
 							value={endDate}
 							onChange={(event) => setEndDate(event.target.value)}
-							className="w-full bg-transparent text-sm text-slate-950 outline-none"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
 
@@ -210,7 +207,7 @@ const ActivityLog = () => {
 						<select
 							value={broker}
 							onChange={(event) => setBroker(event.target.value)}
-							className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 xl:col-span-1"
+							className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400 xl:col-span-1"
 						>
 							<option value="">All brokers</option>
 							{brokers.map((b) => (
@@ -228,10 +225,10 @@ const ActivityLog = () => {
 					</div>
 				:	null}
 
-				<div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+				<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
 					<div className="overflow-x-auto">
-						<table className="min-w-full divide-y divide-slate-200">
-							<thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+						<table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+							<thead className="bg-slate-50 dark:bg-slate-700/50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 								<tr>
 									<th className="px-6 py-4">Action</th>
 									<th className="px-6 py-4">Entity</th>
@@ -239,11 +236,11 @@ const ActivityLog = () => {
 									<th className="px-6 py-4">Time</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-slate-100 bg-white">
+							<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 								{loading ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={4}
 										>
 											Loading activity logs...
@@ -252,14 +249,14 @@ const ActivityLog = () => {
 								: logs.length === 0 ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={4}
 										>
 											No activity logs found.
 										</td>
 									</tr>
 								:	logs.map((log) => (
-										<tr key={log._id} className="transition hover:bg-slate-50">
+										<tr key={log._id} className="transition hover:bg-slate-50 dark:hover:bg-slate-700/30">
 											<td className="px-6 py-4">
 												<div className="flex items-center gap-3">
 													<div
@@ -268,10 +265,10 @@ const ActivityLog = () => {
 														{getInitial(log)}
 													</div>
 													<div>
-														<div className="font-medium text-slate-950">
+														<div className="font-medium text-slate-950 dark:text-white">
 															{log.action}
 														</div>
-														<div className="text-sm text-slate-500">
+														<div className="text-sm text-slate-500 dark:text-slate-400">
 															{log.performedBy?.name ||
 																log.performedBy?.email ||
 																"Unknown user"}
@@ -279,15 +276,15 @@ const ActivityLog = () => {
 													</div>
 												</div>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
 													{getEntityLabel(log.entity)}
 												</span>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												{log.performedBy?.role || "Unknown"}
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												{formatRelativeTime(log.createdAt)}
 											</td>
 										</tr>
@@ -297,8 +294,8 @@ const ActivityLog = () => {
 						</table>
 					</div>
 
-					<div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
-						<p className="text-sm text-slate-600">
+					<div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-6 py-4">
+						<p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 							Page {pagination.page} of {pagination.pages || 1}
 						</p>
 						<div className="flex items-center gap-2">
@@ -311,7 +308,7 @@ const ActivityLog = () => {
 									}))
 								}
 								disabled={pagination.page <= 1}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<ChevronLeft size={16} />
 								Prev
@@ -325,7 +322,7 @@ const ActivityLog = () => {
 									}))
 								}
 								disabled={pagination.page >= (pagination.pages || 1)}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								Next
 								<ChevronRight size={16} />

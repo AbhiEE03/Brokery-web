@@ -100,15 +100,12 @@ const Properties = () => {
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
-				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+				<header className="mb-6 flex flex-col gap-1 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Properties
-						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
 							Properties
 						</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
 							All listings in one place. Filter by city, type, or status.
 						</p>
 					</div>
@@ -123,15 +120,15 @@ const Properties = () => {
 					</button>
 				</header>
 
-				<div className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_180px_180px_180px] lg:items-center lg:p-5">
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400 lg:col-span-1">
+				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm lg:grid-cols-[1fr_180px_180px_180px] lg:items-center lg:p-5">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 focus-within:border-slate-400 lg:col-span-1">
 						<Search size={18} className="text-slate-400" />
 						<input
 							type="search"
 							value={searchTerm}
 							onChange={(event) => setSearchTerm(event.target.value)}
 							placeholder="Search property title"
-							className="w-full bg-transparent text-sm text-slate-950 outline-none placeholder:text-slate-400"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none placeholder:text-slate-400"
 						/>
 					</label>
 
@@ -140,13 +137,13 @@ const Properties = () => {
 						value={city}
 						onChange={(event) => setCity(event.target.value)}
 						placeholder="City"
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 					/>
 
 					<select
 						value={type}
 						onChange={(event) => setType(event.target.value)}
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{typeOptions.map((option) => (
 							<option key={option} value={option}>
@@ -158,7 +155,7 @@ const Properties = () => {
 					<select
 						value={status}
 						onChange={(event) => setStatus(event.target.value)}
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{statusOptions.map((option) => (
 							<option key={option} value={option}>
@@ -171,10 +168,10 @@ const Properties = () => {
 				{formOpen ?
 					<form
 						onSubmit={handleSubmit}
-						className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2"
+						className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:grid-cols-2"
 					>
 						<label className="block sm:col-span-2">
-							<span className="mb-2 block text-sm font-medium text-slate-600">
+							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 								Title
 							</span>
 							<input
@@ -186,13 +183,13 @@ const Properties = () => {
 										title: event.target.value,
 									}))
 								}
-								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 								required
 							/>
 						</label>
 
 						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600">
+							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 								Property Type
 							</span>
 							<select
@@ -203,7 +200,7 @@ const Properties = () => {
 										propertyType: event.target.value,
 									}))
 								}
-								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 							>
 								{typeOptions
 									.filter((option) => option !== "all")
@@ -216,7 +213,7 @@ const Properties = () => {
 						</label>
 
 						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600">
+							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 								Asking Price
 							</span>
 							<input
@@ -231,13 +228,13 @@ const Properties = () => {
 										},
 									}))
 								}
-								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 								required
 							/>
 						</label>
 
 						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600">
+							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 								City
 							</span>
 							<input
@@ -249,13 +246,13 @@ const Properties = () => {
 										location: { ...current.location, city: event.target.value },
 									}))
 								}
-								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 								required
 							/>
 						</label>
 
 						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600">
+							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 								Locality
 							</span>
 							<input
@@ -270,7 +267,7 @@ const Properties = () => {
 										},
 									}))
 								}
-								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 							/>
 						</label>
 
@@ -278,7 +275,7 @@ const Properties = () => {
 							<button
 								type="button"
 								onClick={() => setFormOpen(false)}
-								className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700"
+								className="rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300"
 							>
 								Cancel
 							</button>
@@ -301,11 +298,11 @@ const Properties = () => {
 
 				<div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
 					{loading ?
-						<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm sm:col-span-2 xl:col-span-3">
+						<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 dark:text-slate-400 shadow-sm sm:col-span-2 xl:col-span-3">
 							Loading properties...
 						</div>
 					: properties.length === 0 ?
-						<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm sm:col-span-2 xl:col-span-3">
+						<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 dark:text-slate-400 shadow-sm sm:col-span-2 xl:col-span-3">
 							No properties found.
 						</div>
 					:	properties.map((property) => (
@@ -313,25 +310,25 @@ const Properties = () => {
 								key={property._id}
 								type="button"
 								onClick={() => navigate(`/properties/${property._id}`)}
-								className="group rounded-[2rem] border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
+								className="group rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
 							>
 								<div className="flex items-start justify-between gap-3">
 									<div>
 										<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
 											{property.propertyCode}
 										</p>
-										<h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
+										<h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
 											{property.title}
 										</h3>
 									</div>
 									<span
-										className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusBadgeClass[property.status] || "bg-slate-100 text-slate-600"}`}
+										className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusBadgeClass[property.status] || "bg-slate-100 text-slate-600 dark:text-slate-400"}`}
 									>
 										{property.status?.replace("_", " ")}
 									</span>
 								</div>
 
-								<div className="mt-5 space-y-3 text-sm text-slate-600">
+								<div className="mt-5 space-y-3 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 									<p>{property.location?.city || "Unknown city"}</p>
 									<p className="capitalize">{property.propertyType}</p>
 									<p>

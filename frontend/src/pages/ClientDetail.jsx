@@ -183,41 +183,41 @@ const ClientDetail = () => {
 				<button
 					type="button"
 					onClick={() => navigate("/clients")}
-					className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+					className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 shadow-sm transition hover:bg-slate-50 dark:hover:bg-slate-700/50"
 				>
 					<ArrowLeft size={18} />
 					Back to Clients
 				</button>
 
 				{loading ?
-					<div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+					<div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-sm text-slate-500 dark:text-slate-400 shadow-sm">
 						Loading client details...
 					</div>
 				: error ?
-					<div className="rounded-[2rem] border border-rose-200 bg-rose-50 p-8 text-sm text-rose-700 shadow-sm">
+					<div className="rounded-[2rem] border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-8 text-sm text-rose-700 dark:text-rose-400 shadow-sm">
 						{error}
 					</div>
 				: client ?
 					<div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-						<article className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+						<article className="space-y-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8">
 							<div className="flex flex-wrap items-start justify-between gap-4">
 								<div>
 									<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
 										Client profile
 									</p>
-									<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+									<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
 										{client.name}
 									</h1>
-									<p className="mt-2 text-sm text-slate-500">
+									<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
 										{client.clientCode}
 									</p>
 								</div>
 								<div className="flex flex-wrap gap-2">
-									<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+									<span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
 										{safeLabel(client.pipelineStage)}
 									</span>
 									{directFieldBadgeVisible ?
-										<span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+										<span className="inline-flex items-center gap-2 rounded-full bg-amber-50 dark:bg-amber-900/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400">
 											<BadgeAlert size={14} />
 											Pending Approval
 										</span>
@@ -237,12 +237,12 @@ const ClientDetail = () => {
 								].map(([label, value]) => (
 									<div
 										key={label}
-										className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+										className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 p-4"
 									>
-										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 											{label}
 										</p>
-										<p className="mt-2 text-sm font-medium text-slate-950">
+										<p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">
 											{value}
 										</p>
 									</div>
@@ -250,7 +250,7 @@ const ClientDetail = () => {
 							</div>
 
 							<div>
-								<h2 className="text-lg font-semibold text-slate-950">
+								<h2 className="text-lg font-semibold text-slate-950 dark:text-white">
 									Requirements
 								</h2>
 								<div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -265,12 +265,12 @@ const ClientDetail = () => {
 									].map(([label, value]) => (
 										<div
 											key={label}
-											className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+											className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"
 										>
-											<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+											<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 												{label}
 											</p>
-											<p className="mt-2 text-sm font-medium text-slate-950">
+											<p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">
 												{value ?? "Not specified"}
 											</p>
 										</div>
@@ -279,14 +279,14 @@ const ClientDetail = () => {
 							</div>
 
 							<div>
-								<h2 className="text-lg font-semibold text-slate-950">Notes</h2>
-								<p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+								<h2 className="text-lg font-semibold text-slate-950 dark:text-white">Notes</h2>
+								<p className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 p-4 text-sm leading-7 text-slate-700 dark:text-slate-300">
 									{client.notes || "No notes available."}
 								</p>
 							</div>
 
 							{pendingApproval ?
-								<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+								<div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-800 dark:text-amber-400">
 									<p className="font-semibold">
 										Pending approval request submitted.
 									</p>
@@ -297,11 +297,11 @@ const ClientDetail = () => {
 							:	null}
 						</article>
 
-						<aside className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-							<h2 className="text-xl font-semibold text-slate-950">
+						<aside className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8">
+							<h2 className="text-xl font-semibold text-slate-950 dark:text-white">
 								Edit client
 							</h2>
-							<p className="mt-2 text-sm leading-6 text-slate-600">
+							<p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
 								Direct fields save immediately. Sensitive fields will be routed
 								into a change request.
 							</p>
@@ -321,7 +321,7 @@ const ClientDetail = () => {
 									["requirements.bedrooms", "Bedrooms"],
 								].map(([name, label]) => (
 									<label key={name} className="block">
-										<span className="mb-2 block text-sm font-medium text-slate-600">
+										<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 											{label}
 										</span>
 										<input
@@ -333,7 +333,7 @@ const ClientDetail = () => {
 												:	formData[name]
 											}
 											onChange={handleChange}
-											className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+											className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
 										/>
 									</label>
 								))}
@@ -341,7 +341,7 @@ const ClientDetail = () => {
 								<button
 									type="submit"
 									disabled={saving}
-									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
 								>
 									<Save size={18} />
 									{saving ? "Saving..." : "Save Changes"}
@@ -349,31 +349,31 @@ const ClientDetail = () => {
 							</form>
 
 							{pendingApproval ?
-								<div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+								<div className="mt-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-800 dark:text-amber-400">
 									Pending Approval
 								</div>
 							:	null}
 						</aside>
 
-						<section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:col-span-2">
+						<section className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8 xl:col-span-2">
 							<div className="flex flex-wrap items-center justify-between gap-3">
 								<div>
 									<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
 										Documents
 									</p>
-									<h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+									<h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
 										Uploaded files
 									</h2>
 								</div>
-								<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+								<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
 									<FileText size={16} />
 									{client.documents?.length || 0} files
 								</div>
 							</div>
 
 							<div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+								<div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 p-4">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Existing documents
 									</h3>
 									<div className="mt-4 space-y-3">
@@ -381,12 +381,12 @@ const ClientDetail = () => {
 											client.documents.map((document, index) => (
 												<div
 													key={`${document.name}-${index}`}
-													className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+													className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"
 												>
 													<div className="flex flex-wrap items-center justify-between gap-3">
 														<div>
-															<p className="font-medium text-slate-950">{document.name}</p>
-															<p className="mt-1 text-sm text-slate-500">
+															<p className="font-medium text-slate-950 dark:text-white">{document.name}</p>
+															<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
 																{document.type || "other"} · {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString("en-IN") : "Unknown date"}
 															</p>
 														</div>
@@ -394,7 +394,7 @@ const ClientDetail = () => {
 															href={document.url}
 															target="_blank"
 															rel="noreferrer"
-															className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+															className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-100"
 														>
 															Open
 														</a>
@@ -402,18 +402,18 @@ const ClientDetail = () => {
 												</div>
 										))
 										) : (
-											<p className="text-sm text-slate-500">No documents uploaded yet.</p>
+											<p className="text-sm text-slate-500 dark:text-slate-400">No documents uploaded yet.</p>
 										)}
 									</div>
 								</div>
 
-								<form onSubmit={handleDocumentUpload} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+								<form onSubmit={handleDocumentUpload} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+									<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Upload document
 									</h3>
 									<div className="mt-4 space-y-4">
 										<label className="block">
-											<span className="mb-2 block text-sm font-medium text-slate-600">
+											<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 												File
 											</span>
 											<input
@@ -425,12 +425,12 @@ const ClientDetail = () => {
 														file: event.target.files?.[0] || null,
 													}))
 												}
-												className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-slate-400"
+												className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 dark:bg-slate-700 dark:file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-slate-400"
 											/>
 										</label>
 
 										<label className="block">
-											<span className="mb-2 block text-sm font-medium text-slate-600">
+											<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
 												Type
 											</span>
 											<select
@@ -441,7 +441,7 @@ const ClientDetail = () => {
 														type: event.target.value,
 													}))
 												}
-												className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+												className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 											>
 												{["id_proof", "income_proof", "agreement", "other"].map((option) => (
 													<option key={option} value={option}>
@@ -454,18 +454,18 @@ const ClientDetail = () => {
 										<button
 											type="submit"
 											disabled={uploading}
-											className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+											className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
 										>
 											{uploading ? "Uploading..." : "Upload Document"}
 										</button>
 									</div>
 									{uploadMessage ? (
-										<div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+										<div className="mt-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 text-sm text-emerald-700 dark:text-emerald-400">
 											{uploadMessage}
 										</div>
 									) : null}
 									{uploadError ? (
-										<div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+										<div className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-4 text-sm text-rose-700 dark:text-rose-400">
 											{uploadError}
 										</div>
 									) : null}

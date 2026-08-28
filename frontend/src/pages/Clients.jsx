@@ -119,17 +119,13 @@ const Clients = () => {
 	return (
 		<section className="p-6 sm:p-8">
 			<div className="flex flex-col gap-6">
-				<header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+				<header className="mb-6 flex flex-col gap-1 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-							Clients
-						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
 							Clients
 						</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-							Your full client list. Click any row to see details, edit info, or
-							check pending approvals.
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
+							Your full client list. Click any row to see details, edit info, or check pending approvals.
 						</p>
 					</div>
 
@@ -143,22 +139,22 @@ const Clients = () => {
 					</button>
 				</header>
 
-				<div className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_220px] lg:items-center lg:p-5">
-					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400">
+				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_220px] lg:items-center lg:p-5">
+					<label className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 focus-within:border-slate-400">
 						<Search size={18} className="text-slate-400" />
 						<input
 							type="search"
 							value={searchTerm}
 							onChange={(event) => setSearchTerm(event.target.value)}
 							placeholder="Search client name"
-							className="w-full bg-transparent text-sm text-slate-950 outline-none placeholder:text-slate-400"
+							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none placeholder:text-slate-400"
 						/>
 					</label>
 
 					<select
 						value={stage}
 						onChange={(event) => setStage(event.target.value)}
-						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{stageOptions.map((option) => (
 							<option key={option} value={option}>
@@ -171,7 +167,7 @@ const Clients = () => {
 				{formOpen ?
 					<form
 						onSubmit={handleCreateClient}
-						className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2"
+						className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:grid-cols-2"
 					>
 						{[
 							["name", "Name"],
@@ -180,7 +176,7 @@ const Clients = () => {
 							["notes", "Notes"],
 						].map(([field, label]) => (
 							<label key={field} className="block">
-								<span className="mb-2 block text-sm font-medium text-slate-600">
+								<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">
 									{label}
 								</span>
 								<input
@@ -192,7 +188,7 @@ const Clients = () => {
 											[field]: event.target.value,
 										}))
 									}
-									className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+									className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 									required={field !== "notes"}
 								/>
 							</label>
@@ -201,7 +197,7 @@ const Clients = () => {
 							<button
 								type="button"
 								onClick={() => setFormOpen(false)}
-								className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700"
+								className="rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300"
 							>
 								Cancel
 							</button>
@@ -222,10 +218,10 @@ const Clients = () => {
 					</div>
 				:	null}
 
-				<div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+				<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
 					<div className="overflow-x-auto">
-						<table className="min-w-full divide-y divide-slate-200">
-							<thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+						<table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+							<thead className="bg-slate-50 dark:bg-slate-700/50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 								<tr>
 									<th className="px-6 py-4">Client</th>
 									<th className="px-6 py-4">Code</th>
@@ -234,11 +230,11 @@ const Clients = () => {
 									<th className="px-6 py-4">Broker</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-slate-100 bg-white">
+							<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 								{loading ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={5}
 										>
 											Loading clients...
@@ -247,7 +243,7 @@ const Clients = () => {
 								: clients.length === 0 ?
 									<tr>
 										<td
-											className="px-6 py-8 text-sm text-slate-500"
+											className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400"
 											colSpan={5}
 										>
 											No clients found.
@@ -257,30 +253,30 @@ const Clients = () => {
 										<tr
 											key={client._id}
 											onClick={() => navigate(`/clients/${client._id}`)}
-											className="cursor-pointer transition hover:bg-slate-50"
+											className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-700/30"
 										>
 											<td className="px-6 py-4">
-												<div className="font-medium text-slate-950">
+												<div className="font-medium text-slate-950 dark:text-white">
 													{client.name}
 												</div>
-												<div className="text-sm text-slate-500">
+												<div className="text-sm text-slate-500 dark:text-slate-400">
 													{client.email || "No email"}
 												</div>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												{client.clientCode}
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												{client.phone}
 											</td>
 											<td className="px-6 py-4 text-sm">
 												<span
-													className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${stageBadgeClass[client.pipelineStage] || "bg-slate-100 text-slate-600"}`}
+													className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${stageBadgeClass[client.pipelineStage] || "bg-slate-100 text-slate-600 dark:text-slate-400"}`}
 												>
 													{client.pipelineStage?.replace("_", " ")}
 												</span>
 											</td>
-											<td className="px-6 py-4 text-sm text-slate-600">
+											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 												{client.assignedBroker?.name || "Unassigned"}
 											</td>
 										</tr>
@@ -290,8 +286,8 @@ const Clients = () => {
 						</table>
 					</div>
 
-					<div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
-						<p className="text-sm text-slate-600">
+					<div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-6 py-4">
+						<p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 							Page {pagination.page} of {pagination.pages || 1}
 						</p>
 						<div className="flex items-center gap-2">
@@ -304,7 +300,7 @@ const Clients = () => {
 									}))
 								}
 								disabled={pagination.page <= 1}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<ChevronLeft size={16} />
 								Prev
@@ -318,7 +314,7 @@ const Clients = () => {
 									}))
 								}
 								disabled={pagination.page >= (pagination.pages || 1)}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								Next
 								<ChevronRight size={16} />
