@@ -15,7 +15,7 @@ router.patch(
 	verifyToken,
 	requireAdmin,
 	logActivity(
-		(req, data) => `${req.body.action === 'approve' ? 'Approved' : 'Rejected'} change request for ${data?.data?.entityType || 'entity'}`,
+		(req, data) => `${req.body.action === 'approved' ? 'Approved' : 'Rejected'} change request for ${data?.data?.client ? 'client' : 'entity'} (${req.params.id})`,
 		"change_request",
 		(req) => req.params.id,
 	),

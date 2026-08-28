@@ -163,6 +163,11 @@ const ChangeRequests = () => {
 
 		try {
 			await resolveChangeRequest(requestId, action, rejectionReason);
+
+			// Optimistically remove the resolved item immediately so it disappears at once
+			setRequests((current) => current.filter((r) => r._id !== requestId));
+
+			// Re-fetch to reconcile pagination counts
 			const response = await getChangeRequests({
 				page: 1,
 				limit: pagination.limit,
