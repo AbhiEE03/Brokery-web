@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { createMatch, getMatches } from "../api/matchApi";
+import { getClients } from "../api/clientApi";
+import { getProperties } from "../api/propertyApi";
 
 const interestOptions = ["high", "medium", "low"];
 
@@ -46,6 +48,18 @@ const Matches = () => {
 		propertyId: "",
 		interestLevel: "high",
 	});
+	const [clientOptions, setClientOptions] = useState([]);
+	const [propertyOptions, setPropertyOptions] = useState([]);
+
+	// Fetch clients and properties for the New Match form dropdowns
+	useEffect(() => {
+		getClients({ limit: 200 })
+			.then((res) => setClientOptions(res.data || []))
+			.catch(() => {});
+		getProperties({ limit: 200 })
+			.then((res) => setPropertyOptions(res.data || []))
+			.catch(() => {});
+	}, []);
 
 	const visibleMatches = useMemo(() => {
 		const start = (pagination.page - 1) * pagination.limit;
@@ -150,28 +164,49 @@ const Matches = () => {
 						onSubmit={handleCreateMatch}
 						className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-3"
 					>
-						{[
-							["clientId", "Client ID"],
-							["propertyId", "Property ID"],
-						].map(([field, label]) => (
-							<label key={field} className="block">
-								<span className="mb-2 block text-sm font-medium text-slate-600">
-									{label}
-								</span>
-								<input
-									type="text"
-									value={formData[field]}
-									onChange={(event) =>
-										setFormData((current) => ({
-											...current,
-											[field]: event.target.value,
-										}))
-									}
-									className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
-									required
-								/>
-							</label>
-						))}
+						<label className="block">
+							<span className="mb-2 block text-sm font-medium text-slate-600">Client</span>
+							<select
+								value={formData.clientId}
+								onChange={(event) =>
+									setFormData((current) => ({
+										...current,
+										clientId: event.target.value,
+									}))
+								}
+								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+								required
+							>
+								<option value="">Select a client</option>
+								{clientOptions.map((c) => (
+									<option key={c._id} value={c._id}>
+										{c.name} {c.clientCode ? `(${c.clientCode})` : ""}
+									</option>
+								))}
+							</select>
+						</label>
+
+						<label className="block">
+							<span className="mb-2 block text-sm font-medium text-slate-600">Property</span>
+							<select
+								value={formData.propertyId}
+								onChange={(event) =>
+									setFormData((current) => ({
+										...current,
+										propertyId: event.target.value,
+									}))
+								}
+								className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400"
+								required
+							>
+								<option value="">Select a property</option>
+								{propertyOptions.map((p) => (
+									<option key={p._id} value={p._id}>
+										{p.title} {p.propertyCode ? `(${p.propertyCode})` : ""}
+									</option>
+								))}
+							</select>
+						</label>
 
 						<label className="block">
 							<span className="mb-2 block text-sm font-medium text-slate-600">Interest Level</span>

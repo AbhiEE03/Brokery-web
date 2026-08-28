@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import {
 	getChangeRequests,
 	resolveChangeRequest,
@@ -367,11 +367,11 @@ const ChangeRequests = () => {
 																	handleResolve(request._id, "approved")
 																}
 																disabled={resolvingId === request._id}
-																className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+																className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
 															>
 																{resolvingId === request._id ?
 																	"Working..."
-																:	"Approve"}
+																:	<><CheckCircle size={16} />Approve</>}
 															</button>
 															<button
 																type="button"
@@ -379,9 +379,9 @@ const ChangeRequests = () => {
 																	handleResolve(request._id, "rejected")
 																}
 																disabled={resolvingId === request._id}
-																className="rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-70"
+																className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-70"
 															>
-																Reject
+																<XCircle size={16} />Reject
 															</button>
 														</div>
 													:	<span className="text-slate-400">Resolved</span>

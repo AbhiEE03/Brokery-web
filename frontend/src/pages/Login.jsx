@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Building2, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Building2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { login } from "../api/authApi";
 import { setCredentials } from "../store/authSlice";
 
@@ -135,7 +135,7 @@ const Login = () => {
 										onClick={() => setShowPassword((p) => !p)}
 										className="shrink-0 text-xs font-medium text-slate-400 hover:text-slate-200"
 									>
-										{showPassword ? "Hide" : "Show"}
+										{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
 									</button>
 								</div>
 							</label>
