@@ -847,7 +847,7 @@ const seed = async () => {
 		console.log("Seeding clients...");
 		const clientsToInsert = clientSeeds.map((clientSeed, index) => {
 			const broker = brokers[index % brokers.length];
-		const createdAt =
+			const createdAt =
 				clientSeed.createdAt ? clientSeed.createdAt
 				: clientSeed.monthsAgo === null ? new Date()
 				: monthsAgo(clientSeed.monthsAgo, 7);
