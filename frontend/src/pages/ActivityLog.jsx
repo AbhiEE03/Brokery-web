@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { getActivityLogs } from "../api/activityApi";
+import { getActivityLogs, getBrokers } from "../api/activityApi";
 
 const entityTypeOptions = [
 	"all",
@@ -88,6 +88,15 @@ const ActivityLog = () => {
 	const [endDate, setEndDate] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [brokers, setBrokers] = useState([]);
+
+	// Fetch broker list once on mount (admin only)
+	useEffect(() => {
+		if (!isAdmin) return;
+		getBrokers()
+			.then((res) => setBrokers(res.data || []))
+			.catch(() => {}); // silent — non-critical
+	}, [isAdmin]);
 
 	const queryParams = useMemo(
 		() => ({
@@ -198,15 +207,18 @@ const ActivityLog = () => {
 					</label>
 
 					{isAdmin ?
-						<label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-slate-400 xl:col-span-1">
-							<input
-								type="text"
-								value={broker}
-								onChange={(event) => setBroker(event.target.value)}
-								placeholder="Broker ID"
-								className="w-full bg-transparent text-sm text-slate-950 outline-none placeholder:text-slate-400"
-							/>
-						</label>
+						<select
+							value={broker}
+							onChange={(event) => setBroker(event.target.value)}
+							className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 xl:col-span-1"
+						>
+							<option value="">All brokers</option>
+							{brokers.map((b) => (
+								<option key={b._id} value={b._id}>
+									{b.name || b.email}
+								</option>
+							))}
+						</select>
 					:	null}
 				</div>
 

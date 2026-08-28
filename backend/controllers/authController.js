@@ -87,4 +87,15 @@ const getMe = async (req, res) => {
 	res.status(200).json({ user: req.user });
 };
 
-module.exports = { register, login, getMe };
+const getBrokers = async (req, res) => {
+	try {
+		const brokers = await User.find({ role: "broker" })
+			.select("_id name email")
+			.lean();
+		res.status(200).json({ data: brokers });
+	} catch (error) {
+		res.status(500).json({ message: error.message });
+	}
+};
+
+module.exports = { register, login, getMe, getBrokers };
