@@ -11,10 +11,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import {
-	AlertCircle,
-	BarChart3,
-} from "lucide-react";
+import { AlertCircle, BarChart3 } from "lucide-react";
 import {
 	getBrokerPerformance,
 	getDealsByMonth,
@@ -162,7 +159,8 @@ const Dashboard = () => {
 							Dashboard
 						</h1>
 						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							Live KPI cards, pipeline trends, broker performance, and city inventory pulled from the analytics API.
+							Live KPI cards, pipeline trends, broker performance, and city
+							inventory pulled from the analytics API.
 						</p>
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 dark:bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100">
@@ -217,10 +215,29 @@ const Dashboard = () => {
 								</div>
 							:	<ResponsiveContainer width="100%" height="100%">
 									<BarChart data={dealsChartData}>
-										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
-										<XAxis dataKey="name" tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-										<YAxis tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
+										<CartesianGrid
+											strokeDasharray="3 3"
+											stroke="#e2e8f0"
+											strokeOpacity={0.5}
+										/>
+										<XAxis
+											dataKey="name"
+											tickLine={false}
+											axisLine={false}
+											tick={{ fill: "#94a3b8" }}
+										/>
+										<YAxis
+											tickLine={false}
+											axisLine={false}
+											tick={{ fill: "#94a3b8" }}
+										/>
+										<Tooltip
+											contentStyle={{
+												backgroundColor: "#1e293b",
+												border: "none",
+												color: "#f8fafc",
+											}}
+										/>
 										<Bar
 											dataKey="count"
 											fill="#0f766e"
@@ -266,7 +283,13 @@ const Dashboard = () => {
 												/>
 											))}
 										</Pie>
-										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
+										<Tooltip
+											contentStyle={{
+												backgroundColor: "#1e293b",
+												border: "none",
+												color: "#f8fafc",
+											}}
+										/>
 									</PieChart>
 								</ResponsiveContainer>
 							}
@@ -300,13 +323,19 @@ const Dashboard = () => {
 									<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 										{loading ?
 											<tr>
-												<td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={4}>
+												<td
+													className="px-4 py-6 text-slate-500 dark:text-slate-400"
+													colSpan={4}
+												>
 													Loading broker stats...
 												</td>
 											</tr>
 										: brokerPerformance.length === 0 ?
 											<tr>
-												<td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={4}>
+												<td
+													className="px-4 py-6 text-slate-500 dark:text-slate-400"
+													colSpan={4}
+												>
 													No broker data available.
 												</td>
 											</tr>
@@ -357,17 +386,32 @@ const Dashboard = () => {
 										layout="vertical"
 										margin={{ left: 20 }}
 									>
-										<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
-										<XAxis type="number" tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+										<CartesianGrid
+											strokeDasharray="3 3"
+											stroke="#e2e8f0"
+											strokeOpacity={0.5}
+										/>
+										<XAxis
+											type="number"
+											tickLine={false}
+											axisLine={false}
+											tick={{ fill: "#94a3b8" }}
+										/>
 										<YAxis
 											dataKey="name"
 											type="category"
 											tickLine={false}
 											axisLine={false}
 											width={96}
-											tick={{fill: '#94a3b8'}}
+											tick={{ fill: "#94a3b8" }}
 										/>
-										<Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
+										<Tooltip
+											contentStyle={{
+												backgroundColor: "#1e293b",
+												border: "none",
+												color: "#f8fafc",
+											}}
+										/>
 										<Bar
 											dataKey="count"
 											fill="#0f172a"

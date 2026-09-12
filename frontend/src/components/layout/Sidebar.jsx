@@ -1,5 +1,4 @@
-﻿import {
-	Building2,
+import {
 	LayoutDashboard,
 	ListChecks,
 	LogOut,
@@ -39,14 +38,39 @@ const Sidebar = () => {
 				<aside className="flex w-full flex-col rounded-3xl border border-white/70 bg-white/80 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900 dark:shadow-slate-950/60 xl:w-80 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
 					{/* Brand header */}
 					<div className="flex items-center gap-3 rounded-2xl bg-slate-950 px-4 py-4 text-white shadow-lg shadow-slate-950/25 dark:bg-slate-800">
-						<div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400 text-slate-950">
-							<Building2 size={22} />
-						</div>
-						<div>
-							<p className="text-xs uppercase tracking-[0.28em] text-slate-300">
-								Brokery
-							</p>
-							<h1 className="text-lg font-semibold">Real Estate CRM</h1>
+						{/* Custom skyline SVG */}
+						<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+							{/* Left short block */}
+							<rect x="2" y="18" width="7" height="12" rx="1" fill="#10b981" />
+							{/* Left block windows */}
+							<rect x="3.5" y="20" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="6" y="20" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="3.5" y="23" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="6" y="23" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							{/* Center tall block */}
+							<rect x="11" y="8" width="10" height="22" rx="1" fill="#10b981" />
+							{/* Center block windows */}
+							<rect x="13" y="11" width="2" height="2" rx="0.3" fill="#064e3b" />
+							<rect x="17" y="11" width="2" height="2" rx="0.3" fill="#064e3b" />
+							<rect x="13" y="15" width="2" height="2" rx="0.3" fill="#064e3b" />
+							<rect x="17" y="15" width="2" height="2" rx="0.3" fill="#064e3b" />
+							<rect x="13" y="19" width="2" height="2" rx="0.3" fill="#064e3b" />
+							<rect x="17" y="19" width="2" height="2" rx="0.3" fill="#064e3b" />
+							{/* Right medium block */}
+							<rect x="23" y="13" width="7" height="17" rx="1" fill="#10b981" />
+							{/* Right block windows */}
+							<rect x="24.5" y="15" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="27" y="15" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="24.5" y="18.5" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							<rect x="27" y="18.5" width="1.5" height="1.5" rx="0.3" fill="#064e3b" />
+							{/* Ground line */}
+							<rect x="1" y="30" width="30" height="1.5" rx="0.75" fill="#10b981" opacity="0.5" />
+						</svg>
+						<div className="flex items-center gap-3">
+							<div>
+								<p className="text-lg font-semibold text-white leading-none">Brokery</p>
+								<p className="text-xs text-emerald-400 tracking-widest uppercase mt-0.5">CRM</p>
+							</div>
 						</div>
 					</div>
 
