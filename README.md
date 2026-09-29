@@ -7,6 +7,15 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 **Frontend:** https://brokery-ruddy.vercel.app  
 **Backend API:** https://brokery-api.onrender.com
 
+### Highlights
+
+- **Maker-checker approvals that stay correct under concurrency:** each approval applies exactly once, with transactional stale-write detection. Tested with parallel approvals.
+- **Tamper-evident audit log:** hash-chained entries written in the same transaction as each change, with a verify endpoint that pinpoints the first edited entry.
+- **Client ownership protection:** a unique index on normalised phone numbers makes "who registered this buyer first" provable, even when two brokers submit at the same instant.
+- **Object-level authorization:** one policy module and a table-driven test of every endpoint × role.
+- **Measured performance:** 6–10× faster list and report queries on 100k synthetic clients after adding query-driven indexes (see [Performance](#performance)).
+- **Tests and CI:** 178 backend tests against a real in-memory MongoDB replica set, 18 frontend tests and a browser end-to-end test, all run in CI on every pull request.
+
 ---
 
 ## Demo Credentials
@@ -70,9 +79,40 @@ Work in progress, in order:
 
 ## Tech Stack
 
-**Frontend:** React, Redux Toolkit, Axios, Tailwind CSS, Recharts, Vite  
-**Backend:** Node.js, Express, MongoDB, Mongoose, JWT, Nodemailer, Cloudinary  
-**Infra:** Render (backend), Vercel (frontend), MongoDB Atlas
+**Frontend:** React 19, React Query, Redux Toolkit, React Router, Axios, Tailwind CSS, Recharts, Vite  
+**Backend:** Node.js, Express 5, MongoDB (transactions on a replica set), Mongoose, Zod, JWT, pino, Helmet, Nodemailer, Cloudinary, migrate-mongo  
+**Testing:** Jest + Supertest + mongodb-memory-server, Vitest + React Testing Library, Playwright, autocannon (benchmarks)  
+**Infra:** GitHub Actions (CI), Render (backend), Vercel (frontend), MongoDB Atlas
+
+## Project structure
+
+```text
+backend/
+  app.js, server.js       Express app (importable by tests) and process entry point
+  routes/ controllers/    HTTP layer: loadResource → authorize → validate → handler
+  services/               approval engine, audit log, ownership claims, lifecycle, notifications
+  policies/               who can do what, in one place
+  validation/             Zod schemas for every body and query
+  models/                 Mongoose schemas (soft delete plugin, indexes)
+  migrations/             versioned, idempotent data migrations
+  workers/                outbox worker that sends notification emails
+  tests/                  Jest suites, including the authorization matrix and concurrency tests
+  bench/                  synthetic data + autocannon benchmark
+frontend/
+  src/pages/              screens (clients, properties, approvals, claims, dashboard…)
+  src/hooks/queries.js    React Query hooks per resource
+  e2e/                    Playwright end-to-end test
+docs/
+  adr/                    design decisions (approval engine, soft delete & stage history, audit log & ownership)
+  ENGINEERING_LOG.md      bugs found, how they were found, how they were fixed
+```
+
+## Design docs
+
+- [ADR 001 — Approval engine](docs/adr/001-approval-engine.md): exactly-once approvals, stale detection, transactional outbox
+- [ADR 002 — Soft delete, stage history and atomic codes](docs/adr/002-soft-delete-and-stage-history.md)
+- [ADR 003 — Audit log and ownership protection](docs/adr/003-audit-log-and-ownership.md)
+- [Engineering log](docs/ENGINEERING_LOG.md): the authorization holes, race conditions and UI bugs found, and how each was fixed and tested
 
 ---
 
@@ -110,6 +150,11 @@ npm run dev:sandbox
 Starts the API on `http://localhost:5000` against a throwaway in-memory MongoDB replica set, seeded with demo data. Uploads go to `backend/.dev-uploads/` and emails are logged instead of sent. It never touches the database configured in `.env`.
 
 ### Tests
+
+CI (GitHub Actions) runs three jobs on every pull request and every push to `main`:
+- **backend:** 178 Jest tests, including the authorization matrix, parallel-approval races, audit-chain tamper detection and simultaneous duplicate registrations.
+- **frontend:** lint, 18 Vitest tests and a production build.
+- **e2e:** a Playwright test of the core flow in a real browser.
 
 ```bash
 cd backend && npm test    # Jest + Supertest against an in-memory MongoDB replica set
