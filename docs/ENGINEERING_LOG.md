@@ -25,9 +25,9 @@ Short entries for notable bugs: how they were found, why they happened, how they
 
 **Root cause:** ownership checks were written per controller, by hand, and several handlers never got one.
 
-**Fix:** Phase 2 (see below).
+**Fix:** see the next entry.
 
-### Fix (Phase 2)
+### Fix: policy module and validation on every route
 
 - One policy module (`backend/policies/index.js`) defines who can read/update/upload/link/delete each resource type.
 - Routes now run `loadResource → authorize(action) → validate → handler`. On upload routes authorization runs **before** Multer, so a rejected request never stores a file.

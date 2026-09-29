@@ -89,7 +89,7 @@ const rows = [
 	["activity requires a token", "get", () => "/api/activity", "anon", 401],
 ];
 
-// Rows that failed before Phase 2 (see docs/ENGINEERING_LOG.md). Keep this
+// Rows that failed before the policy module landed (see docs/ENGINEERING_LOG.md). Keep this
 // empty: a new entry means an authorization regression.
 const KNOWN_FAILURES = new Set([]);
 
