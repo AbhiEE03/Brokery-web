@@ -8,7 +8,10 @@
 		"dev": "nodemon server.js",
 		"create-admin": "node scripts/createAdmin.js",
 		"test": "jest --runInBand",
-		"dev:sandbox": "node scripts/devServer.js"
+		"dev:sandbox": "node scripts/devServer.js",
+		"migrate:status": "migrate-mongo status",
+		"migrate:up": "migrate-mongo up",
+		"migrate:down": "migrate-mongo down"
 	},
 	"keywords": [],
 	"author": "",
