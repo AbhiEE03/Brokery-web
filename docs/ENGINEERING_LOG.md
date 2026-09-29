@@ -36,3 +36,21 @@ Short entries for notable bugs: how they were found, why they happened, how they
 - Login returns 401 for bad credentials, rejects non-string input, and disabled accounts are blocked at login and on every request.
 
 **Result:** the authorization matrix has no known failures; `KNOWN_FAILURES` is empty and any new entry would be a regression.
+
+---
+
+## 2026-09-29 — Approval workflow rebuilt as a transactional engine
+
+**Problems found (analysis + tests):**
+- Property change requests were written but never readable or approvable (only the client copy of the controller had a resolver).
+- Every save created a change request, even for unchanged values, because the UI sends the whole form.
+- Approval was check-then-act: concurrent approvals could apply twice and send two emails; a crash between writes could leave the record changed but the request still pending.
+- Approving an old request silently overwrote newer values.
+
+**Fix:** see [ADR 001](adr/001-approval-engine.md). Verified by `tests/approval.test.js`:
+- no-op edits create nothing
+- 5 concurrent approvals → exactly one 200, four 409s, one entity update, one notification (repeated 20×)
+- stale requests become `conflict`
+- invalid approvals roll back
+
+**Caught in the browser (Edge, sandbox):** after proposing a budget change, pressing *Save* again resent the still-displayed value and superseded the first request with an identical one. Fixed server-side: re-submitting a value that's already pending now reuses the existing request (test: "re-submitting an already pending value reuses the same request").
