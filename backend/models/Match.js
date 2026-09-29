@@ -24,12 +24,10 @@ const matchSchema = new mongoose.Schema({
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
 	},
-	createdAt: {
-		type: Date,
-		default: Date.now,
-	},
-});
+}, { timestamps: true });
 
 matchSchema.index({ client: 1, property: 1 }, { unique: true });
+matchSchema.index({ property: 1 });
+matchSchema.index({ createdBy: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Match", matchSchema);

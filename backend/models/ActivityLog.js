@@ -20,13 +20,10 @@ const activityLogSchema = new mongoose.Schema({
 	metadata: {
 		type: mongoose.Schema.Types.Mixed,
 	},
-	createdAt: {
-		type: Date,
-		default: Date.now,
-	},
-});
+}, { timestamps: { createdAt: true, updatedAt: false } });
 
-activityLogSchema.index({ createdAt: -1 });
+activityLogSchema.index({ createdAt: -1, _id: -1 });
+activityLogSchema.index({ entity: 1, createdAt: -1 });
 activityLogSchema.index({ performedBy: 1, createdAt: -1 });
 
 module.exports = mongoose.model("ActivityLog", activityLogSchema);
