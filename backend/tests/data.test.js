@@ -169,6 +169,22 @@ describe("filters and pagination", () => {
 		expect(res.body.data[0].location.city).toBe("Mumbai");
 	});
 
+	test("property search ranks whole-word title hits first and falls back to substrings", async () => {
+		const broker = await makeUser();
+		await makeProperty({ title: "Corner flat", location: { city: "Pune", locality: "Villa Road" } });
+		await makeProperty({ title: "Sea facing villa", location: { city: "Goa", locality: "Candolim" } });
+		await makeProperty({ title: "Studio", location: { city: "Delhi", locality: "Saket" } });
+
+		const words = await get(broker, "/api/properties?search=villa");
+		expect(words.body.data.map((p) => p.title)).toEqual(["Sea facing villa", "Corner flat"]);
+
+		const partial = await get(broker, "/api/properties?search=vill");
+		expect(partial.body.pagination.total).toBe(2);
+
+		const code = await get(broker, `/api/properties?search=${words.body.data[0].propertyCode}`);
+		expect(code.body.data).toHaveLength(1);
+	});
+
 	test("matches are paginated server-side", async () => {
 		const broker = await makeUser();
 		const client = await makeClient({ broker });

@@ -126,5 +126,10 @@ propertySchema.index({ status: 1, "location.cityKey": 1, createdAt: -1 });
 propertySchema.index({ "pricing.askingPrice": 1 });
 propertySchema.index({ addedBy: 1, createdAt: -1 });
 propertySchema.index({ createdAt: -1 });
+// Free-text search. Title matches rank above locality matches.
+propertySchema.index(
+	{ title: "text", "location.locality": "text" },
+	{ name: "property_text", weights: { title: 3, "location.locality": 1 } },
+);
 
 module.exports = mongoose.model("Property", propertySchema);

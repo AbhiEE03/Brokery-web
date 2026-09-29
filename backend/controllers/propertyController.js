@@ -38,25 +38,49 @@ exports.getProperties = async (req, res) => {
 	// Area range filter
 	if (minArea !== undefined) query["specs.area"] = { $gte: minArea };
 
-	// Free-text search on title, locality and code
-	if (search) {
-		const pattern = { $regex: escapeRegex(search), $options: "i" };
-		query.$or = [
-			{ title: pattern },
-			{ "location.locality": pattern },
-			{ propertyCode: pattern },
-		];
-	}
+	const runQuery = (filter, sort) =>
+		Promise.all([
+			Property.find(filter)
+				.sort(sort)
+				.skip(toSkip({ page, limit }))
+				.limit(limit)
+				.populate("addedBy", "name email")
+				.lean(),
+			Property.countDocuments(filter),
+		]);
 
-	const [properties, total] = await Promise.all([
-		Property.find(query)
-			.sort({ createdAt: -1, _id: -1 })
-			.skip(toSkip({ page, limit }))
-			.limit(limit)
-			.populate("addedBy", "name email")
-			.lean(),
-		Property.countDocuments(query),
-	]);
+	let result;
+	if (search) {
+		// Whole-word search uses the text index, ranked by relevance. Partial words
+		// ("vil" for "villa") and codes don't match a text index, so a search with no
+		// text hits falls back to a substring scan over the same fields.
+		try {
+			result = await runQuery(
+				{ ...query, $text: { $search: search } },
+				{ score: { $meta: "textScore" }, createdAt: -1, _id: -1 },
+			);
+		} catch (error) {
+			if (error.code !== 27) throw error; // 27 = text index not built yet
+			result = [[], 0];
+		}
+		if (result[1] === 0) {
+			const pattern = { $regex: escapeRegex(search), $options: "i" };
+			result = await runQuery(
+				{
+					...query,
+					$or: [
+						{ title: pattern },
+						{ "location.locality": pattern },
+						{ propertyCode: pattern },
+					],
+				},
+				{ createdAt: -1, _id: -1 },
+			);
+		}
+	} else {
+		result = await runQuery(query, { createdAt: -1, _id: -1 });
+	}
+	const [properties, total] = result;
 
 	res.status(200).json({
 		success: true,
