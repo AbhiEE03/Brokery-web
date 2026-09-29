@@ -18,6 +18,7 @@ const Property = require("../models/Property");
 const User = require("../models/User");
 const ChangeRequest = require("../models/ChangeRequest");
 const Notification = require("../models/Notification");
+const StageTransition = require("../models/StageTransition");
 const clientRules = require("../utils/clientEditRules");
 const propertyRules = require("../utils/propertyEditRules");
 const { flattenPayload, normalizeValue, valuesEqual } = require("../utils/objectPath");
@@ -82,6 +83,25 @@ const validateReferences = async (changes, session) => {
 			code: "INVALID_BROKER",
 		});
 	}
+};
+
+// Pipeline history: one StageTransition per stage change, in the same transaction.
+const recordStageTransitions = async ({ entityType, entity, changes, actor, via, session }) => {
+	if (entityType !== "client") return;
+	const stageChange = changes.find((c) => c.field === "pipelineStage");
+	if (!stageChange) return;
+	await StageTransition.create(
+		[
+			{
+				client: entity._id,
+				from: stageChange.oldValue,
+				to: stageChange.newValue,
+				changedBy: actor._id,
+				via,
+			},
+		],
+		{ session },
+	);
 };
 
 const bumpRevision = (Model, entityId, session) =>
@@ -180,6 +200,14 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 			applyChanges(entity, directChanges);
 			entity.revision += 1;
 			await entity.save({ session });
+			await recordStageTransitions({
+				entityType,
+				entity,
+				changes: directChanges,
+				actor,
+				via: "direct",
+				session,
+			});
 		} else if (pending && !reusedExisting) {
 			await bumpRevision(Model, entityId, session);
 		}
@@ -294,6 +322,14 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 				applyChanges(entity, cr.changes);
 				entity.revision += 1;
 				await entity.save({ session }); // schema validation failure aborts everything
+				await recordStageTransitions({
+					entityType: cr.entityType,
+					entity,
+					changes: cr.changes,
+					actor,
+					via: "change_request",
+					session,
+				});
 			}
 		}
 
