@@ -1,4 +1,5 @@
 const ActivityLog = require("../models/ActivityLog");
+const { toSkip, paginationMeta } = require("../utils/pagination");
 
 const buildQuery = (req) => {
 	const query = {};
@@ -10,18 +11,11 @@ const buildQuery = (req) => {
 	return query;
 };
 
-const getPagination = (req) => {
-	const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-	const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-	const skip = (page - 1) * limit;
-
-	return { page, limit, skip };
-};
-
 exports.getLogs = async (req, res) => {
 	try {
 		const query = buildQuery(req);
-		const { page, limit, skip } = getPagination(req);
+		const { page, limit } = req.validated.query;
+		const skip = toSkip({ page, limit });
 
 		const [logs, total] = await Promise.all([
 			ActivityLog.find(query)
@@ -36,12 +30,7 @@ exports.getLogs = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			data: logs,
-			pagination: {
-				page,
-				limit,
-				total,
-				pages: Math.ceil(total / limit),
-			},
+			pagination: paginationMeta({ page, limit }, total),
 		});
 	} catch (error) {
 		res.status(500).json({
@@ -54,14 +43,15 @@ exports.getLogs = async (req, res) => {
 exports.getLogsByEntity = async (req, res) => {
 	try {
 		const query = {
-			entityId: req.params.entityId,
+			entityId: req.validated.params.entityId,
 		};
 
 		if (req.user.role === "broker") {
 			query.performedBy = req.user._id;
 		}
 
-		const { page, limit, skip } = getPagination(req);
+		const { page, limit } = req.validated.query;
+		const skip = toSkip({ page, limit });
 
 		const [logs, total] = await Promise.all([
 			ActivityLog.find(query)
@@ -76,12 +66,7 @@ exports.getLogsByEntity = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			data: logs,
-			pagination: {
-				page,
-				limit,
-				total,
-				pages: Math.ceil(total / limit),
-			},
+			pagination: paginationMeta({ page, limit }, total),
 		});
 	} catch (error) {
 		res.status(500).json({

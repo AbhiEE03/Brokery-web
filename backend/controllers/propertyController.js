@@ -5,6 +5,8 @@ const {
 	DIRECT_EDIT_FIELDS,
 	APPROVAL_REQUIRED_FIELDS,
 } = require("../utils/propertyEditRules");
+const { toSkip, paginationMeta } = require("../utils/pagination");
+const { escapeRegex } = require("../utils/regex");
 
 const flattenPayload = (value, prefix = "") => {
 	const entries = [];
@@ -37,9 +39,11 @@ exports.createProperty = async (req, res) => {
 	try {
 		const propertyCode = await generateNextCode(Property);
 
+		// req.body is whitelisted by createPropertyBody; status is server-controlled.
 		const property = await Property.create({
 			...req.body,
 			propertyCode,
+			status: "available",
 			addedBy: req.user._id,
 		});
 
@@ -59,17 +63,8 @@ exports.createProperty = async (req, res) => {
 // Get all properties with filters and pagination
 exports.getProperties = async (req, res) => {
 	try {
-		const {
-			city,
-			type,
-			status,
-			minPrice,
-			maxPrice,
-			minArea,
-			page = 1,
-			limit = 20,
-			search,
-		} = req.query;
+		const { city, type, status, minPrice, maxPrice, minArea, page, limit, search } =
+			req.validated.query;
 
 		// Build query object
 		const query = {};
@@ -78,35 +73,39 @@ exports.getProperties = async (req, res) => {
 		if (status) query.status = status;
 
 		// Price range filter
-		if (minPrice || maxPrice) {
+		if (minPrice !== undefined || maxPrice !== undefined) {
 			query["pricing.askingPrice"] = {};
-			if (minPrice) query["pricing.askingPrice"].$gte = Number(minPrice);
-			if (maxPrice) query["pricing.askingPrice"].$lte = Number(maxPrice);
+			if (minPrice !== undefined) query["pricing.askingPrice"].$gte = minPrice;
+			if (maxPrice !== undefined) query["pricing.askingPrice"].$lte = maxPrice;
 		}
 
 		// Area range filter
-		if (minArea) query["specs.area"] = { $gte: Number(minArea) };
+		if (minArea !== undefined) query["specs.area"] = { $gte: minArea };
 
-		// Execute query with pagination
-		const skip = (Number(page) - 1) * Number(limit);
-		const properties = await Property.find(query)
-			.skip(skip)
-			.limit(Number(limit))
-			.populate("addedBy", "name email")
-			.lean();
+		// Free-text search on title, locality and code
+		if (search) {
+			const pattern = { $regex: escapeRegex(search), $options: "i" };
+			query.$or = [
+				{ title: pattern },
+				{ "location.locality": pattern },
+				{ propertyCode: pattern },
+			];
+		}
 
-		// Get total count for pagination metadata
-		const total = await Property.countDocuments(query);
+		const [properties, total] = await Promise.all([
+			Property.find(query)
+				.sort({ createdAt: -1, _id: -1 })
+				.skip(toSkip({ page, limit }))
+				.limit(limit)
+				.populate("addedBy", "name email")
+				.lean(),
+			Property.countDocuments(query),
+		]);
 
 		res.status(200).json({
 			success: true,
 			data: properties,
-			pagination: {
-				page: Number(page),
-				limit: Number(limit),
-				total,
-				pages: Math.ceil(total / Number(limit)),
-			},
+			pagination: paginationMeta({ page, limit }, total),
 		});
 	} catch (error) {
 		res.status(500).json({
@@ -116,45 +115,17 @@ exports.getProperties = async (req, res) => {
 	}
 };
 
-// Get single property by ID
+// Get single property by ID (loaded and authorized by route middleware)
 exports.getPropertyById = async (req, res) => {
-	try {
-		const property = await Property.findById(req.params.id).populate(
-			"addedBy",
-			"name email",
-		);
-
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			data: property,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: req.resource,
+	});
 };
 
 // Apply direct property edits immediately and queue sensitive ones for admin approval
 exports.updateProperty = async (req, res) => {
 	try {
-		const property = await Property.findById(req.params.id);
-
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
-
 		const flatFields = flattenPayload(req.body);
 		const directFields = {};
 		const sensitiveFields = {};
@@ -222,14 +193,7 @@ exports.updateProperty = async (req, res) => {
 // Delete property (admin only)
 exports.deleteProperty = async (req, res) => {
 	try {
-		const property = await Property.findByIdAndDelete(req.params.id);
-
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
+		await req.resource.deleteOne();
 
 		res.status(200).json({
 			success: true,
@@ -245,14 +209,7 @@ exports.deleteProperty = async (req, res) => {
 
 exports.addPropertyImage = async (req, res) => {
 	try {
-		const property = await Property.findById(req.params.id);
-
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
+		const property = req.resource;
 
 		if (!req.file) {
 			return res.status(400).json({

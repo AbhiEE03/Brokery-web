@@ -4,6 +4,8 @@ const {
 	DIRECT_EDIT_FIELDS,
 	APPROVAL_REQUIRED_FIELDS,
 } = require("../utils/clientEditRules");
+const { toSkip, paginationMeta } = require("../utils/pagination");
+const { escapeRegex } = require("../utils/regex");
 
 // Generate the next client code in the format CL-000001
 const generateNextClientCode = async () => {
@@ -44,13 +46,16 @@ exports.createClient = async (req, res) => {
 	try {
 		const clientCode = await generateNextClientCode();
 
+		// req.body is already whitelisted by createClientBody: pipelineStage,
+		// codes and timestamps are server-controlled.
 		const clientPayload = {
 			...req.body,
 			clientCode,
+			pipelineStage: "lead",
 		};
 
 		// Brokers can only create clients assigned to themselves
-		if (req.user.role === "broker") {
+		if (req.user.role !== "admin") {
 			clientPayload.assignedBroker = req.user._id;
 		}
 
@@ -72,7 +77,7 @@ exports.createClient = async (req, res) => {
 // Get clients with role-based visibility, filters, and pagination
 exports.getClients = async (req, res) => {
 	try {
-		const { stage, city, broker, search, page = 1, limit = 20 } = req.query;
+		const { stage, city, broker, search, page, limit } = req.validated.query;
 
 		const query = {};
 
@@ -86,28 +91,23 @@ exports.getClients = async (req, res) => {
 		if (stage) query.pipelineStage = stage;
 		if (city) query["requirements.city"] = city;
 		if (search) {
-			query.name = { $regex: search, $options: "i" };
+			query.name = { $regex: escapeRegex(search), $options: "i" };
 		}
 
-		const skip = (Number(page) - 1) * Number(limit);
-		const clients = await Client.find(query)
-			.skip(skip)
-			.limit(Number(limit))
-			.sort({ createdAt: -1 })
-			.populate("assignedBroker", "name email")
-			.lean();
-
-		const total = await Client.countDocuments(query);
+		const [clients, total] = await Promise.all([
+			Client.find(query)
+				.sort({ createdAt: -1 })
+				.skip(toSkip({ page, limit }))
+				.limit(limit)
+				.populate("assignedBroker", "name email")
+				.lean(),
+			Client.countDocuments(query),
+		]);
 
 		res.status(200).json({
 			success: true,
 			data: clients,
-			pagination: {
-				page: Number(page),
-				limit: Number(limit),
-				total,
-				pages: Math.ceil(total / Number(limit)),
-			},
+			pagination: paginationMeta({ page, limit }, total),
 		});
 	} catch (error) {
 		res.status(500).json({
@@ -117,65 +117,17 @@ exports.getClients = async (req, res) => {
 	}
 };
 
-// Get a single client by ID, with broker access restriction
+// Get a single client by ID (loaded and authorized by route middleware)
 exports.getClientById = async (req, res) => {
-	try {
-		const client = await Client.findById(req.params.id).populate(
-			"assignedBroker",
-			"name email",
-		);
-
-		if (!client) {
-			return res.status(404).json({
-				success: false,
-				message: "Client not found",
-			});
-		}
-
-		if (
-			req.user.role === "broker" &&
-			client.assignedBroker?._id?.toString() !== req.user._id.toString()
-		) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to view this client",
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			data: client,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: req.resource,
+	});
 };
 
 // Apply direct edits immediately and queue sensitive ones for admin approval
 exports.updateClient = async (req, res) => {
 	try {
-		const client = await Client.findById(req.params.id);
-
-		if (!client) {
-			return res.status(404).json({
-				success: false,
-				message: "Client not found",
-			});
-		}
-
-		if (
-			req.user.role === "broker" &&
-			client.assignedBroker?.toString() !== req.user._id.toString()
-		) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to update this client",
-			});
-		}
-
 		const flatFields = flattenPayload(req.body);
 		const directFields = {};
 		const sensitiveFields = {};
@@ -243,14 +195,7 @@ exports.updateClient = async (req, res) => {
 // Delete a client by ID (admin only)
 exports.deleteClient = async (req, res) => {
 	try {
-		const client = await Client.findByIdAndDelete(req.params.id);
-
-		if (!client) {
-			return res.status(404).json({
-				success: false,
-				message: "Client not found",
-			});
-		}
+		await req.resource.deleteOne();
 
 		res.status(200).json({
 			success: true,
@@ -264,16 +209,11 @@ exports.deleteClient = async (req, res) => {
 	}
 };
 
+const DOCUMENT_TYPES = ["id_proof", "income_proof", "agreement", "other"];
+
 exports.addClientDocument = async (req, res) => {
 	try {
-		const client = await Client.findById(req.params.id);
-
-		if (!client) {
-			return res.status(404).json({
-				success: false,
-				message: "Client not found",
-			});
-		}
+		const client = req.resource;
 
 		if (!req.file) {
 			return res.status(400).json({
@@ -286,7 +226,7 @@ exports.addClientDocument = async (req, res) => {
 		client.documents.push({
 			name: req.file.originalname,
 			url: req.file.path,
-			type: req.body.type || "other",
+			type: DOCUMENT_TYPES.includes(req.body?.type) ? req.body.type : "other",
 			uploadedAt: new Date(),
 		});
 

@@ -8,14 +8,28 @@ const {
 	deleteClient,
 	addClientDocument,
 } = require("../controllers/clientController");
+const Client = require("../models/Client");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const { loadResource, authorize } = require("../middleware/resourceMiddleware");
+const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
+const {
+	createClientBody,
+	updateClientBody,
+	listClientsQuery,
+} = require("../validation/schemas");
+
+const loadClient = loadResource(Client, "client", {
+	populate: { path: "assignedBroker", select: "name email" },
+});
+
+router.use(verifyToken);
 
 // Create client (admin or broker)
 router.post(
 	"/",
-	verifyToken,
+	validate({ body: createClientBody }),
 	logActivity(
 		(req, data) => `Created client ${data?.data?.name || req.body.name || "client"}`,
 		"client",
@@ -25,18 +39,26 @@ router.post(
 );
 
 // Get all clients with filters and pagination
-router.get("/", verifyToken, getClients);
+router.get("/", validate({ query: listClientsQuery }), getClients);
 
 // Get client by ID
-router.get("/:id", verifyToken, getClientById);
+router.get("/:id", loadClient, authorize("read"), getClientById);
 
-// Upload client document
-router.post("/:id/documents", verifyToken, uploadDocument.single("file"), addClientDocument);
+// Upload client document — authorization runs before the file is stored
+router.post(
+	"/:id/documents",
+	loadClient,
+	authorize("upload"),
+	uploadDocument.single("file"),
+	addClientDocument,
+);
 
 // Update client (direct edits immediately, sensitive edits via change request)
 router.patch(
 	"/:id",
-	verifyToken,
+	loadClient,
+	authorize("update"),
+	validate({ body: updateClientBody }),
 	logActivity(
 		(req, data) => `Updated client ${data?.data?.name || req.params.id}`,
 		"client",
@@ -46,6 +68,6 @@ router.patch(
 );
 
 // Delete client (admin only)
-router.delete("/:id", verifyToken, requireAdmin, deleteClient);
+router.delete("/:id", requireAdmin, loadClient, deleteClient);
 
 module.exports = router;

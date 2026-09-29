@@ -41,52 +41,17 @@ exports.getChangeRequests = async (req, res) => {
 	}
 };
 
+// Loaded and authorized by route middleware.
 exports.getChangeRequestById = async (req, res) => {
-	try {
-		const changeRequest = await ClientChangeRequest.findById(req.params.id)
-			.populate("client", "name clientCode")
-			.populate("requestedBy", "name email")
-			.lean();
-
-		if (!changeRequest) {
-			return res.status(404).json({
-				success: false,
-				message: "Change request not found",
-			});
-		}
-
-		if (
-			req.user.role === "broker" &&
-			changeRequest.requestedBy?._id?.toString() !== req.user._id.toString()
-		) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to view this change request",
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			data: changeRequest,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: req.resource,
+	});
 };
 
 exports.resolveChangeRequest = async (req, res) => {
 	try {
 		const { action, adminNote } = req.body;
-
-		if (!["approved", "rejected"].includes(action)) {
-			return res.status(400).json({
-				success: false,
-				message: "Action must be approved or rejected",
-			});
-		}
 
 		const changeRequest = await ClientChangeRequest.findById(req.params.id);
 

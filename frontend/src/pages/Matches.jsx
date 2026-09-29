@@ -53,10 +53,10 @@ const Matches = () => {
 
 	// Fetch clients and properties for the New Match form dropdowns
 	useEffect(() => {
-		getClients({ limit: 200 })
+		getClients({ limit: 100 })
 			.then((res) => setClientOptions(res.data || []))
 			.catch(() => {});
-		getProperties({ limit: 200 })
+		getProperties({ limit: 100 })
 			.then((res) => setPropertyOptions(res.data || []))
 			.catch(() => {});
 	}, []);

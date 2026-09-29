@@ -5,15 +5,31 @@ const {
 	getChangeRequestById,
 	resolveChangeRequest,
 } = require("../controllers/changeRequestController");
+const ClientChangeRequest = require("../models/ClientChangeRequest");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const { loadResource, authorize } = require("../middleware/resourceMiddleware");
+const { validate } = require("../middleware/validate");
+const { resolveChangeRequestBody } = require("../validation/schemas");
 const logActivity = require("../middleware/logActivity");
 
-router.get("/", verifyToken, getChangeRequests);
-router.get("/:id", verifyToken, getChangeRequestById);
+router.use(verifyToken);
+
+router.get("/", getChangeRequests);
+router.get(
+	"/:id",
+	loadResource(ClientChangeRequest, "changeRequest", {
+		populate: [
+			{ path: "client", select: "name clientCode" },
+			{ path: "requestedBy", select: "name email" },
+		],
+	}),
+	authorize("read"),
+	getChangeRequestById,
+);
 router.patch(
 	"/:id/resolve",
-	verifyToken,
 	requireAdmin,
+	validate({ body: resolveChangeRequestBody }),
 	logActivity(
 		(req, data) => `${req.body.action === 'approved' ? 'Approved' : 'Rejected'} change request for ${data?.data?.client ? 'client' : 'entity'} (${req.params.id})`,
 		"change_request",

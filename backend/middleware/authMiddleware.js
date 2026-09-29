@@ -13,8 +13,8 @@ const verifyToken = async (req, res, next) => {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
 		const user = await User.findById(decoded.id).select("-password").lean();
 
-		if (!user) {
-			return res.status(401).json({ message: "User not found" });
+		if (!user || !user.isActive) {
+			return res.status(401).json({ message: "User not found or disabled" });
 		}
 
 		req.user = user;
