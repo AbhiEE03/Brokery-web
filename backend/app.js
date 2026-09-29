@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const path = require("path");
 const pinoHttp = require("pino-http");
 const logger = require("./config/logger");
+const { requestContext } = require("./utils/requestContext");
 const authRoutes = require("./routes/authRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const clientRoutes = require("./routes/clientRoutes");
@@ -45,6 +46,7 @@ const createApp = () => {
 		}),
 	);
 
+	app.use(requestContext);
 	app.use(helmet());
 	app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 	app.use(express.json({ limit: "100kb" }));
