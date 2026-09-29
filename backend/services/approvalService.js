@@ -117,6 +117,7 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 		);
 
 		let pending = null;
+		let reusedExisting = false;
 		const superseded = [];
 
 		// Fail fast: the proposal must produce a valid document once approved.
@@ -136,6 +137,16 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 			}).session(session);
 
 			const blocking = overlapping.filter((cr) => !sameId(cr.requestedBy, actor._id));
+
+			// Idempotent re-submit: the requester already has a pending request asking
+			// for exactly these values (e.g. the form was saved twice) — reuse it.
+			const alreadyRequested = overlapping.find(
+				(cr) =>
+					sameId(cr.requestedBy, actor._id) &&
+					sensitiveChanges.every((change) =>
+						cr.changes.some((c) => c.field === change.field && valuesEqual(c.newValue, change.newValue)),
+					),
+			);
 			if (blocking.length) {
 				throw new HttpError(
 					409,
@@ -147,36 +158,21 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 				);
 			}
 
-			// The requester's own older request is replaced; fields it had that this
-			// edit doesn't touch are carried over so nothing silently disappears.
-			const carried = new Map();
-			for (const cr of overlapping) {
-				for (const change of cr.changes) {
-					if (!fields.includes(change.field) && !valuesEqual(entity.get(change.field), change.newValue)) {
-						carried.set(change.field, {
-							field: change.field,
-							oldValue: normalizeValue(entity.get(change.field)),
-							newValue: change.newValue,
-						});
-					}
-				}
-				cr.status = "superseded";
-				cr.resolvedAt = new Date();
-				await cr.save({ session });
-				superseded.push(cr._id);
+			if (alreadyRequested) {
+				pending = alreadyRequested;
+				reusedExisting = true;
+			} else {
+				pending = await replaceOwnRequests({
+					entity,
+					entityType,
+					entityId,
+					actor,
+					overlapping,
+					sensitiveChanges,
+					superseded,
+					session,
+				});
 			}
-
-			[pending] = await ChangeRequest.create(
-				[
-					{
-						entityType,
-						entityId,
-						requestedBy: actor._id,
-						changes: [...sensitiveChanges, ...carried.values()],
-					},
-				],
-				{ session },
-			);
 		}
 
 		if (directChanges.length) {
@@ -184,7 +180,7 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 			applyChanges(entity, directChanges);
 			entity.revision += 1;
 			await entity.save({ session });
-		} else if (pending) {
+		} else if (pending && !reusedExisting) {
 			await bumpRevision(Model, entityId, session);
 		}
 
@@ -198,6 +194,50 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 	});
 
 	return result;
+};
+
+// The requester's own older requests are replaced; fields they had that this
+// edit doesn't touch are carried over so nothing silently disappears.
+const replaceOwnRequests = async ({
+	entity,
+	entityType,
+	entityId,
+	actor,
+	overlapping,
+	sensitiveChanges,
+	superseded,
+	session,
+}) => {
+	const fields = sensitiveChanges.map((c) => c.field);
+	const carried = new Map();
+	for (const cr of overlapping) {
+		for (const change of cr.changes) {
+			if (!fields.includes(change.field) && !valuesEqual(entity.get(change.field), change.newValue)) {
+				carried.set(change.field, {
+					field: change.field,
+					oldValue: normalizeValue(entity.get(change.field)),
+					newValue: change.newValue,
+				});
+			}
+		}
+		cr.status = "superseded";
+		cr.resolvedAt = new Date();
+		await cr.save({ session });
+		superseded.push(cr._id);
+	}
+
+	const [created] = await ChangeRequest.create(
+		[
+			{
+				entityType,
+				entityId,
+				requestedBy: actor._id,
+				changes: [...sensitiveChanges, ...carried.values()],
+			},
+		],
+		{ session },
+	);
+	return created;
 };
 
 /**

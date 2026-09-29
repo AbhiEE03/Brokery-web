@@ -117,6 +117,21 @@ describe("proposing changes", () => {
 		]);
 	});
 
+	test("re-submitting an already pending value reuses the same request", async () => {
+		const { broker, client } = await setup();
+		// The detail form keeps showing the proposed value, so saving again resends it.
+		const first = await patchClient(broker, client, { requirements: { minBudget: 8500000 } });
+		const second = await patchClient(broker, client, {
+			notes: "follow up",
+			requirements: { minBudget: 8500000 },
+		});
+
+		expect(second.status).toBe(200);
+		expect(second.body.data.pending._id).toBe(first.body.data.pending._id);
+		expect(second.body.data.superseded).toEqual([]);
+		expect(await ChangeRequest.countDocuments()).toBe(1);
+	});
+
 	test("a different broker's overlapping pending request blocks with 409", async () => {
 		const { admin, broker, client } = await setup();
 		const newOwner = await makeUser();
