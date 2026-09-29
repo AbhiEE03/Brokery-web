@@ -10,6 +10,8 @@ const ChangeRequest = require("../models/ChangeRequest");
 const StageTransition = require("../models/StageTransition");
 const { nextClientCode, nextPropertyCode } = require("../utils/codeGenerator");
 const audit = require("./auditService");
+const ownership = require("./ownershipService");
+const { normalizeIndianMobile } = require("../utils/phone");
 
 // Fields captured in the audit entry when a record is created.
 const clientSnapshot = (c) => ({
@@ -32,6 +34,22 @@ const propertySnapshot = (p) => ({
 });
 
 const createClient = async ({ data, actor }) => {
+	const phoneKey = normalizeIndianMobile(data.phone);
+	// Fast path: most duplicates are caught here. A simultaneous registration of
+	// the same number slips past this check and is caught by the unique index below.
+	if (phoneKey && (await Client.exists({ phoneKey }))) {
+		await ownership.rejectDuplicate({ phoneKey, actor, data });
+	}
+
+	try {
+		return await insertClient({ data, actor });
+	} catch (error) {
+		if (ownership.isPhoneKeyConflict(error)) await ownership.rejectDuplicate({ phoneKey, actor, data });
+		throw error;
+	}
+};
+
+const insertClient = async ({ data, actor }) => {
 	let client;
 	await mongoose.connection.transaction(async (session) => {
 		const clientCode = await nextClientCode({ session });

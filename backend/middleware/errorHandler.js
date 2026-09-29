@@ -38,6 +38,13 @@ const toErrorResponse = (error) => {
 	}
 
 	if (error?.code === 11000) {
+		if (error.keyPattern?.phoneKey) {
+			// Editing a client's phone to a number another live client already has.
+			return {
+				status: 409,
+				body: { code: "CLIENT_ALREADY_REGISTERED", message: "Another client is already registered with this phone number" },
+			};
+		}
 		const fields = Object.keys(error.keyPattern || {}).join(", ");
 		return {
 			status: 409,

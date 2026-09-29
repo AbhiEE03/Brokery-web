@@ -120,7 +120,10 @@ const bumpRevision = (Model, entityId, session) =>
 /**
  * @returns {{ entity, pending, applied: string[], unchanged: string[], superseded: ObjectId[] }}
  */
-const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
+// Runs fn in the caller's transaction when one is given, otherwise in a new one.
+const inTransaction = (session, fn) => (session ? fn(session) : mongoose.connection.transaction(fn));
+
+const proposeChanges = async ({ entityType, entityId, patch, actor, session: outerSession }) => {
 	const { Model, rules } = getEntry(entityType);
 	const { direct, sensitive, unsupported } = classify(rules, patch);
 
@@ -135,7 +138,7 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 	const actorIsAdmin = isAdmin(actor);
 	let result;
 
-	await mongoose.connection.transaction(async (session) => {
+	await inTransaction(outerSession, async (session) => {
 		const entity = await Model.findById(entityId).session(session);
 		if (!entity) throw new HttpError(404, `${Model.modelName} not found`);
 
