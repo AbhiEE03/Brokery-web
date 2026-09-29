@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const path = require("path");
 const pinoHttp = require("pino-http");
 const logger = require("./config/logger");
+const { requestContext } = require("./utils/requestContext");
 const authRoutes = require("./routes/authRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const clientRoutes = require("./routes/clientRoutes");
@@ -13,6 +14,8 @@ const changeRequestRoutes = require("./routes/changeRequestRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const ownershipRoutes = require("./routes/ownershipRoutes");
+const metaRoutes = require("./routes/metaRoutes");
 const { createApiLimiter } = require("./middleware/rateLimit");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -45,6 +48,7 @@ const createApp = () => {
 		}),
 	);
 
+	app.use(requestContext);
 	app.use(helmet());
 	app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 	app.use(express.json({ limit: "100kb" }));
@@ -87,6 +91,8 @@ const createApp = () => {
 	app.use("/api/matches", matchRoutes);
 	app.use("/api/activity", activityRoutes);
 	app.use("/api/analytics", analyticsRoutes);
+	app.use("/api/ownership-claims", ownershipRoutes);
+	app.use("/api/meta", metaRoutes);
 
 	app.use(notFoundHandler);
 	app.use(errorHandler);

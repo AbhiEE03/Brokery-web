@@ -10,7 +10,7 @@ const Client = require("../models/Client");
 const Match = require("../models/Match");
 const ChangeRequest = require("../models/ChangeRequest");
 const StageTransition = require("../models/StageTransition");
-const ActivityLog = require("../models/ActivityLog");
+const audit = require("../services/auditService");
 
 const DAY = 24 * 60 * 60 * 1000;
 const get = (user, path) => request().get(path).set(authHeader(user));
@@ -202,14 +202,15 @@ describe("filters and pagination", () => {
 			const a = await makeUser();
 			const b = await makeUser();
 			const base = new Date("2026-09-01T10:00:00Z").getTime();
-			await ActivityLog.insertMany(
-				Array.from({ length: 7 }, (_, i) => ({
-					performedBy: i % 2 ? a._id : b._id,
-					action: `action ${i}`,
-					entity: i < 4 ? "client" : "property",
-					createdAt: new Date(base + i * DAY),
-				})),
-			);
+			for (let i = 0; i < 7; i += 1) {
+				await audit.record({
+					actor: i % 2 ? a._id : b._id,
+					action: i < 4 ? "client.update" : "property.update",
+					entityType: i < 4 ? "client" : "property",
+					summary: `action ${i}`,
+					at: new Date(base + i * DAY),
+				});
+			}
 			return { admin, a, b };
 		};
 

@@ -9,6 +9,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { faker } = require("@faker-js/faker/locale/en_IN");
 const { encodeClientCode, encodePropertyCode } = require("../utils/codeGenerator");
+const { computeHash, GENESIS_HASH } = require("../services/auditService");
 
 const CITIES = ["Delhi", "Mumbai", "Bangalore", "Hyderabad", "Pune", "Chennai", "Kolkata", "Ahmedabad"];
 const TYPES = ["flat", "villa", "plot", "commercial"];
@@ -139,15 +140,37 @@ const generateSynthetic = async ({
 	});
 	await insertInBatches(db.collection("changerequests"), requests);
 
-	const activity = Array.from({ length: activityCount }, () => {
+	// Audit trail: a valid hash chain in time order, like the app would have written.
+	const times = Array.from({ length: activityCount }, () => now - faker.number.int({ min: 0, max: 540 * 24 * 60 }) * 60000).sort((a, b) => a - b);
+	let prevHash = GENESIS_HASH;
+	const activity = times.map((time, i) => {
 		const client = faker.helpers.arrayElement(clients);
-		return { _id: oid(), performedBy: client.assignedBroker, action: `Updated client ${client.name}`, entity: "client", entityId: client._id, createdAt: new Date(now - faker.number.int({ min: 0, max: 540 * 24 * 60 }) * 60000) };
+		const entry = {
+			_id: oid(),
+			seq: i + 1,
+			at: new Date(time),
+			actor: client.assignedBroker,
+			action: "client.update",
+			entityType: "client",
+			entityId: client._id,
+			summary: `Updated client ${client.name}: notes`,
+			before: { notes: null },
+			after: { notes: faker.lorem.sentence() },
+			meta: null,
+			requestId: null,
+			legacy: false,
+			prevHash,
+		};
+		entry.hash = computeHash(prevHash, entry);
+		prevHash = entry.hash;
+		return entry;
 	});
-	await insertInBatches(db.collection("activitylogs"), activity);
+	await insertInBatches(db.collection("auditlogs"), activity);
 
 	await db.collection("counters").insertMany([
 		{ _id: "client", seq: clientCount },
 		{ _id: "property", seq: propertyCount },
+		{ _id: "audit", seq: activity.length, lastHash: prevHash },
 	]);
 
 	return {
@@ -160,7 +183,7 @@ const generateSynthetic = async ({
 			stageTransitions: transitions.length,
 			matches: matches.length,
 			changeRequests: requests.length,
-			activityLogs: activity.length,
+			auditEntries: activity.length,
 		},
 	};
 };

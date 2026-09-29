@@ -1,8 +1,12 @@
+const mongoose = require("mongoose");
 const Match = require("../models/Match");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
 const { can, isAdmin } = require("../policies");
 const { toSkip, paginationMeta } = require("../utils/pagination");
+const audit = require("../services/auditService");
+
+const matchLabel = (clientName, propertyTitle) => `${clientName || "client"} ↔ ${propertyTitle || "property"}`;
 
 const CLIENT_FIELDS = "name clientCode phone email assignedBroker";
 const PROPERTY_FIELDS = "title propertyCode location pricing status";
@@ -41,12 +45,12 @@ exports.getMatches = async (req, res) => {
 exports.createMatch = async (req, res) => {
 	const { client, property, interestLevel, notes } = req.body;
 
-	const [clientDoc, propertyExists] = await Promise.all([
+	const [clientDoc, propertyDoc] = await Promise.all([
 		Client.findById(client),
-		Property.exists({ _id: property }),
+		Property.findById(property).select("title propertyCode").lean(),
 	]);
 
-	if (!clientDoc || !propertyExists) {
+	if (!clientDoc || !propertyDoc) {
 		return res.status(404).json({
 			success: false,
 			message: "Client or property not found",
@@ -68,12 +72,24 @@ exports.createMatch = async (req, res) => {
 		});
 	}
 
-	const match = await Match.create({
-		client,
-		property,
-		interestLevel,
-		notes,
-		createdBy: req.user._id,
+	let match;
+	await mongoose.connection.transaction(async (session) => {
+		[match] = await Match.create(
+			[{ client, property, interestLevel, notes, createdBy: req.user._id }],
+			{ session },
+		);
+		await audit.record(
+			{
+				actor: req.user._id,
+				action: "match.create",
+				entityType: "match",
+				entityId: match._id,
+				subject: { type: "client", id: clientDoc._id },
+				summary: `Linked ${matchLabel(clientDoc.name, propertyDoc.title)} (${interestLevel} interest)`,
+				after: { client: clientDoc._id, property: propertyDoc._id, interestLevel, notes: notes ?? null },
+			},
+			{ session },
+		);
 	});
 
 	res.status(201).json({
@@ -116,6 +132,7 @@ exports.getMatchesByProperty = async (req, res) => {
 
 exports.updateMatch = async (req, res) => {
 	const match = req.resource;
+	const before = { interestLevel: match.interestLevel, notes: match.notes ?? null };
 
 	if (req.body.interestLevel) {
 		match.interestLevel = req.body.interestLevel;
@@ -124,7 +141,22 @@ exports.updateMatch = async (req, res) => {
 		match.notes = req.body.notes;
 	}
 
-	await match.save();
+	await mongoose.connection.transaction(async (session) => {
+		await match.save({ session });
+		await audit.record(
+			{
+				actor: req.user._id,
+				action: "match.update",
+				entityType: "match",
+				entityId: match._id,
+				subject: { type: "client", id: match.client._id },
+				summary: `Updated link ${matchLabel(match.client.name, match.property?.title)}`,
+				before,
+				after: { interestLevel: match.interestLevel, notes: match.notes ?? null },
+			},
+			{ session },
+		);
+	});
 
 	res.status(200).json({
 		success: true,
@@ -134,7 +166,22 @@ exports.updateMatch = async (req, res) => {
 };
 
 exports.deleteMatch = async (req, res) => {
-	await req.resource.deleteOne();
+	const match = req.resource;
+	await mongoose.connection.transaction(async (session) => {
+		await match.deleteOne({ session });
+		await audit.record(
+			{
+				actor: req.user._id,
+				action: "match.delete",
+				entityType: "match",
+				entityId: match._id,
+				subject: { type: "client", id: match.client._id },
+				summary: `Removed link ${matchLabel(match.client.name, match.property?.title)}`,
+				before: { client: match.client._id, property: match.property?._id ?? match.property, interestLevel: match.interestLevel },
+			},
+			{ session },
+		);
+	});
 
 	res.status(200).json({
 		success: true,

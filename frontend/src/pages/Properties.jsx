@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
-import { createProperty, getProperties } from "../api/propertyApi";
+import { createProperty } from "../api/propertyApi";
+import { useProperties } from "../hooks/queries";
+import useDebouncedValue from "../hooks/useDebouncedValue";
+import Pagination from "../components/ui/Pagination";
+import { messageFrom } from "../utils/errors";
+import { formatINR } from "../utils/format";
+
+const PAGE_SIZE = 12;
 
 const typeOptions = ["all", "flat", "villa", "plot", "commercial"];
 const statusOptions = [
@@ -14,8 +22,8 @@ const statusOptions = [
 
 const Properties = () => {
 	const navigate = useNavigate();
-	const [properties, setProperties] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const queryClient = useQueryClient();
+	const [page, setPage] = useState(1);
 	const [error, setError] = useState("");
 	const [searchTerm, setSearchTerm] = useState("");
 	const [city, setCity] = useState("");
@@ -30,43 +38,26 @@ const Properties = () => {
 		pricing: { askingPrice: "" },
 	});
 
-	const queryParams = useMemo(
-		() => ({
-			search: searchTerm || undefined,
-			city: city || undefined,
-			type: type === "all" ? undefined : type,
-			status: status === "all" ? undefined : status,
-			page: 1,
-			limit: 100,
-		}),
-		[searchTerm, city, type, status],
-	);
+	const debouncedSearch = useDebouncedValue(searchTerm.trim());
+	const debouncedCity = useDebouncedValue(city.trim());
+	const query = useProperties({
+		search: debouncedSearch || undefined,
+		city: debouncedCity || undefined,
+		type: type === "all" ? undefined : type,
+		status: status === "all" ? undefined : status,
+		page,
+		limit: PAGE_SIZE,
+	});
+	const properties = query.data?.data || [];
+	const pagination = query.data?.pagination || { page: 1, pages: 1 };
+	const loading = query.isPending;
+	const listError = query.isError ? messageFrom(query.error, "Failed to load properties.") : "";
 
-	useEffect(() => {
-		let isMounted = true;
-
-		const loadProperties = async () => {
-			setLoading(true);
-			setError("");
-
-			try {
-				const response = await getProperties(queryParams);
-				if (!isMounted) return;
-				setProperties(response.data || []);
-			} catch (err) {
-				if (!isMounted) return;
-				setError(err.response?.data?.message || "Failed to load properties.");
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-
-		loadProperties();
-
-		return () => {
-			isMounted = false;
-		};
-	}, [queryParams]);
+	// Any filter change starts again from page 1.
+	const withReset = (setter) => (value) => {
+		setter(value);
+		setPage(1);
+	};
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
@@ -82,10 +73,9 @@ const Properties = () => {
 				pricing: { askingPrice: "" },
 			});
 			setFormOpen(false);
-			const response = await getProperties(queryParams);
-			setProperties(response.data || []);
+			await queryClient.invalidateQueries({ queryKey: ["properties"] });
 		} catch (err) {
-			setError(err.response?.data?.message || "Unable to create property.");
+			setError(messageFrom(err, "Unable to create property."));
 		} finally {
 			setCreating(false);
 		}
@@ -126,7 +116,7 @@ const Properties = () => {
 						<input
 							type="search"
 							value={searchTerm}
-							onChange={(event) => setSearchTerm(event.target.value)}
+							onChange={(event) => withReset(setSearchTerm)(event.target.value)}
 							placeholder="Search property title"
 							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none placeholder:text-slate-400"
 						/>
@@ -135,14 +125,14 @@ const Properties = () => {
 					<input
 						type="text"
 						value={city}
-						onChange={(event) => setCity(event.target.value)}
+						onChange={(event) => withReset(setCity)(event.target.value)}
 						placeholder="City"
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 					/>
 
 					<select
 						value={type}
-						onChange={(event) => setType(event.target.value)}
+						onChange={(event) => withReset(setType)(event.target.value)}
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{typeOptions.map((option) => (
@@ -154,7 +144,7 @@ const Properties = () => {
 
 					<select
 						value={status}
-						onChange={(event) => setStatus(event.target.value)}
+						onChange={(event) => withReset(setStatus)(event.target.value)}
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{statusOptions.map((option) => (
@@ -290,9 +280,9 @@ const Properties = () => {
 					</form>
 				:	null}
 
-				{error ?
+				{error || listError ?
 					<div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-						{error}
+						{error || listError}
 					</div>
 				:	null}
 
@@ -331,16 +321,20 @@ const Properties = () => {
 								<div className="mt-5 space-y-3 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
 									<p>{property.location?.city || "Unknown city"}</p>
 									<p className="capitalize">{property.propertyType}</p>
-									<p>
-										{property.pricing?.askingPrice ?
-											`INR ${Number(property.pricing.askingPrice).toLocaleString("en-IN")}`
-										:	"Price unavailable"}
+									<p className="font-semibold text-slate-900 dark:text-white">
+										{property.pricing?.askingPrice ? formatINR(property.pricing.askingPrice) : "Price unavailable"}
 									</p>
 								</div>
 							</button>
 						))
 					}
 				</div>
+
+				{pagination.pages > 1 ?
+					<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+						<Pagination page={pagination.page} pages={pagination.pages} total={pagination.total} onPageChange={setPage} />
+					</div>
+				:	null}
 			</div>
 		</section>
 	);

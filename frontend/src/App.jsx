@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import useTheme from "./hooks/useTheme";
+import { Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import RequireRole from "./components/layout/RequireRole";
+import HomeRedirect from "./components/layout/HomeRedirect";
 import Sidebar from "./components/layout/Sidebar";
 import Login from "./pages/Login";
 import Clients from "./pages/Clients";
@@ -11,35 +12,33 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLog from "./pages/ActivityLog";
 import ChangeRequests from "./pages/ChangeRequests";
 import Matches from "./pages/Matches";
+import OwnershipClaims from "./pages/OwnershipClaims";
 
 function App() {
-	const { theme } = useTheme();
-
 	return (
-		<div className={theme}>
-			<Routes>
-				<Route path="/login" element={<Login />} />
+		<Routes>
+			<Route path="/login" element={<Login />} />
 
-				<Route element={<ProtectedRoute />}>
-					<Route element={<Sidebar />}>
-						<Route index element={<Navigate to="/dashboard" replace />} />
+			<Route element={<ProtectedRoute />}>
+				<Route element={<Sidebar />}>
+					<Route index element={<HomeRedirect />} />
+					<Route path="/clients" element={<Clients />} />
+					<Route path="/clients/:id" element={<ClientDetail />} />
+					<Route path="/properties" element={<Properties />} />
+					<Route path="/properties/:id" element={<PropertyDetail />} />
+					<Route path="/matches" element={<Matches />} />
+					<Route path="/change-requests" element={<ChangeRequests />} />
+
+					<Route element={<RequireRole roles={["admin"]} />}>
 						<Route path="/dashboard" element={<Dashboard />} />
-						<Route path="/clients" element={<Clients />} />
-						<Route path="/clients/:id" element={<ClientDetail />} />
-						<Route path="/properties" element={<Properties />} />
-						<Route path="/properties/:id" element={<PropertyDetail />} />
-						<Route
-							path="/matches"
-							element={<Matches />}
-						/>
-						<Route path="/change-requests" element={<ChangeRequests />} />
 						<Route path="/activity-log" element={<ActivityLog />} />
+						<Route path="/ownership-claims" element={<OwnershipClaims />} />
 					</Route>
 				</Route>
+			</Route>
 
-				<Route path="*" element={<Navigate to="/dashboard" replace />} />
-			</Routes>
-		</div>
+			<Route path="*" element={<HomeRedirect />} />
+		</Routes>
 	);
 }
 

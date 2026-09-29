@@ -31,9 +31,17 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 - **Client–property links** — brokers record which client is interested in which property and how strongly (manual links; see Roadmap for automated matching).
 - **Readable codes** — clients get `CL-000001`-style codes; properties get `00AA → 00AB → … → 01AA` codes, reserved from atomic counters so concurrent creates never collide.
 - **Property search** — relevance-ranked full-text search on title and locality (text index), falling back to substring matching for partial words and property codes.
-- **Activity log** — create/update actions on clients and properties and approval decisions are recorded with the acting user; filterable by entity, broker and date, with keyset (cursor) pagination.
+- **Tamper-evident audit log** — every change, upload, approval decision, account event and login is recorded with before/after values, the actor and the request id, inside the same transaction as the change. Entries are hash-chained (`sha256(prevHash + entry)`), and `GET /api/activity/verify` pinpoints the first edited or missing entry. Filterable by entity, broker and date, with keyset pagination. See [ADR 003](docs/adr/003-audit-log-and-ownership.md).
+- **Client ownership protection** — phone numbers are normalised (`098765 43210` = `+91-98765-43210`) and unique among live clients via a database index, so two brokers can't both register the same buyer, even at the same instant. The second broker learns only that the client exists; an ownership claim goes to the admin with the audit entry proving who registered first, and the admin keeps or transfers the client.
 - **Uploads** — client documents (PDF/images) and property images are stored on Cloudinary; file types are verified by content signature, 5 MB limit.
 - **Reliable notifications** — approval outcomes are written to a transactional outbox and emailed by a background worker with retries and exponential backoff, so SMTP problems never block or roll back an approval.
+- **Frontend** — React 19 + React Query:
+  - Role-aware routing: brokers land on their clients, and admin screens are guarded.
+  - An expired session signs the user out.
+  - Edit forms send only the fields you changed and show which of them will need approval *before* you save, using rules from `GET /api/meta/edit-policies` rather than copies in the UI.
+  - Each client and property shows its history from the audit log.
+  - The approval queue has Pending / Conflicts / History tabs, with a side-by-side "requester saw → now → requested" view for conflicts.
+  - Accessible confirmation dialogs; prices shown in ₹ lakh/crore.
 - **Operational basics** — structured JSON logs with request IDs, consistent JSON error responses, Helmet security headers, per-IP API rate limits and per-account login throttling, `/healthz` and `/readyz` probes, env validation at boot, graceful shutdown.
 
 ## Performance
@@ -55,10 +63,8 @@ Single laptop run with the database on the same machine; read it as before/after
 
 Work in progress, in order:
 
-1. Tamper-evident audit log and duplicate-client ownership protection
-2. Frontend refactor (shared data-fetching, role-aware routing, conflict view)
-3. Explainable client↔property matching and buyer shortlist links
-4. Event-driven re-match alerts when a property's price or status changes
+1. Explainable client↔property matching and buyer shortlist links
+2. Event-driven re-match alerts when a property's price or status changes
 
 ---
 
@@ -108,6 +114,8 @@ Starts the API on `http://localhost:5000` against a throwaway in-memory MongoDB 
 ```bash
 cd backend && npm test    # Jest + Supertest against an in-memory MongoDB replica set
 cd frontend && npm test   # Vitest + React Testing Library
+cd frontend && npm run e2e   # Playwright: broker proposes → admin approves → broker sees it
+                             # (starts the sandbox API + Vite; set PW_CHANNEL=msedge or chrome to use an installed browser)
 ```
 
 ### Using a real MongoDB

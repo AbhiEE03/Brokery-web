@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { normalizeIndianMobile, INVALID_MOBILE_MESSAGE } = require("../utils/phone");
 const { MAX_LIMIT } = require("../utils/pagination");
 
 const PIPELINE_STAGES = ["lead", "contacted", "site_visit", "negotiation", "closed", "lost"];
@@ -87,9 +88,15 @@ const requirementsCreate = z
 	});
 
 // pipelineStage, clientCode, documents and timestamps are server-controlled and stripped.
+const indianMobile = z
+	.string()
+	.trim()
+	.max(20)
+	.refine((value) => normalizeIndianMobile(value) !== null, INVALID_MOBILE_MESSAGE);
+
 const createClientBody = z.object({
 	name: z.string().trim().min(1).max(100),
-	phone: z.string().trim().min(7).max(20),
+	phone: indianMobile,
 	email: optionalEmail,
 	notes: optionalText(2000),
 	requirements: requirementsCreate.optional(),
@@ -98,7 +105,7 @@ const createClientBody = z.object({
 
 const updateClientBody = z.object({
 	name: z.string().trim().min(1).max(100).optional(),
-	phone: z.string().trim().min(7).max(20).optional(),
+	phone: indianMobile.optional(),
 	email: clearable(z.email().max(254)),
 	notes: clearable(z.string().max(2000)),
 	pipelineStage: z.enum(PIPELINE_STAGES).optional(),
@@ -239,11 +246,21 @@ const decisionBody = z.object({
 	adminNote: z.string().trim().max(500).optional(),
 });
 
+const listOwnershipClaimsQuery = z.object({
+	...pagination,
+	status: z.enum(["open", "upheld", "transferred"]).optional(),
+});
+
+const resolveOwnershipClaimBody = z.object({
+	decision: z.enum(["keep", "transfer"]),
+	note: z.string().trim().max(500).optional(),
+});
+
 const listChangeRequestsQuery = z
 	.object({
 		...pagination,
 		status: z
-			.enum(["pending", "approved", "rejected", "conflict", "superseded", "withdrawn"])
+			.enum(["pending", "approved", "rejected", "conflict", "superseded", "withdrawn", "resolved"])
 			.optional(),
 		entityType: z.enum(["client", "property"]).optional(),
 		from: z.coerce.date().optional(),
@@ -258,17 +275,17 @@ const listChangeRequestsQuery = z
 // Date-only "to" values (YYYY-MM-DD) include that whole day.
 const endOfDay = (date) => (date ? new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1) : date);
 
-// Keyset cursor: "<ISO createdAt>_<ObjectId>" of the last item on the previous page.
-const cursor = z
-	.string()
-	.regex(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z_[a-f\d]{24}$/i, "Invalid cursor")
-	.optional();
+// Keyset cursor: the audit sequence number of the last item on the previous page.
+const cursor = z.coerce.number().int().positive().optional();
 
 const listActivityQuery = z
 	.object({
 		...pagination,
 		cursor,
-		entityType: z.enum(["client", "property", "match", "change_request", "user"]).optional(),
+		entityType: z
+			.enum(["client", "property", "match", "change_request", "user", "ownership_claim"])
+			.optional(),
+		action: z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Invalid action").optional(),
 		broker: objectId.optional(),
 		from: z.coerce.date().optional(),
 		to: z.coerce.date().optional(),
@@ -302,6 +319,8 @@ module.exports = {
 	decisionBody,
 	listChangeRequestsQuery,
 	listActivityQuery,
+	listOwnershipClaimsQuery,
+	resolveOwnershipClaimBody,
 	listMatchesQuery,
 	entityParams,
 };

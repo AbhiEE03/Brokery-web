@@ -13,8 +13,6 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
-const logActivity = require("../middleware/logActivity");
-const { describeUpdate } = logActivity;
 const {
 	createClientBody,
 	updateClientBody,
@@ -31,11 +29,6 @@ router.use(verifyToken);
 router.post(
 	"/",
 	validate({ body: createClientBody }),
-	logActivity(
-		(req, data) => `Created client ${data?.data?.name || req.body.name || "client"}`,
-		"client",
-		(req, data) => data?.data?._id,
-	),
 	createClient,
 );
 
@@ -60,11 +53,6 @@ router.patch(
 	loadClient,
 	authorize("update"),
 	validate({ body: updateClientBody }),
-	logActivity(
-		(req, payload) => describeUpdate("client", req.resource?.name, payload?.data),
-		"client",
-		(req) => req.params.id,
-	),
 	updateClient,
 );
 

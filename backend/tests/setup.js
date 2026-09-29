@@ -27,6 +27,8 @@ require("../models/Notification");
 require("../models/StageTransition");
 require("../models/Counter");
 require("../models/ActivityLog");
+require("../models/AuditLog");
+require("../models/OwnershipClaim");
 
 beforeAll(async () => {
 	await mongoose.connect(process.env.MONGO_URL_TEST, {

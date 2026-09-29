@@ -1,7 +1,41 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Image, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { getPropertyById, updateProperty, uploadPropertyImage } from "../api/propertyApi";
+import { useEditPolicies } from "../hooks/queries";
+import RecordHistory from "../components/RecordHistory";
+import EditPreview from "../components/EditPreview";
+import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
+import { messageFrom } from "../utils/errors";
+
+const NUMERIC_FIELDS = new Set(["pricing.askingPrice"]);
+
+const FIELDS = [
+	["title", "Title"],
+	["propertyType", "Property Type", ["flat", "villa", "plot", "commercial"]],
+	["status", "Status", ["available", "under_negotiation", "sold", "withdrawn"]],
+	["pricing.askingPrice", "Asking Price"],
+	["location.city", "City"],
+	["location.locality", "Locality"],
+	["location.sector", "Sector"],
+	["location.pincode", "Pincode"],
+];
+
+const toForm = (property) => ({
+	title: property.title || "",
+	propertyType: property.propertyType || "flat",
+	status: property.status || "available",
+	location: {
+		city: property.location?.city || "",
+		locality: property.location?.locality || "",
+		sector: property.location?.sector || "",
+		pincode: property.location?.pincode || "",
+	},
+	pricing: { askingPrice: property.pricing?.askingPrice ?? "" },
+});
+
+const readPath = (object, path) => path.split(".").reduce((node, key) => node?.[key], object);
 
 const PropertyDetail = () => {
 	const { id } = useParams();
@@ -15,6 +49,9 @@ const PropertyDetail = () => {
 	const [uploadMessage, setUploadMessage] = useState("");
 	const [uploadError, setUploadError] = useState("");
 	const [imageFile, setImageFile] = useState(null);
+	const [initialForm, setInitialForm] = useState(null);
+	const queryClient = useQueryClient();
+	const { data: policies } = useEditPolicies();
 	const [formData, setFormData] = useState({
 		title: "",
 		propertyType: "flat",
@@ -23,7 +60,7 @@ const PropertyDetail = () => {
 		pricing: { askingPrice: "" },
 	});
 
-	const loadProperty = async ({ setBusy = false, mountedCheck = () => true } = {}) => {
+	const loadProperty = useCallback(async ({ setBusy = false, mountedCheck = () => true } = {}) => {
 		if (setBusy) setLoading(true);
 		setError("");
 
@@ -33,25 +70,15 @@ const PropertyDetail = () => {
 
 			const currentProperty = response.data;
 			setProperty(currentProperty);
-			setFormData({
-				title: currentProperty.title || "",
-				propertyType: currentProperty.propertyType || "flat",
-				status: currentProperty.status || "available",
-				location: {
-					city: currentProperty.location?.city || "",
-					locality: currentProperty.location?.locality || "",
-					sector: currentProperty.location?.sector || "",
-					pincode: currentProperty.location?.pincode || "",
-				},
-				pricing: { askingPrice: currentProperty.pricing?.askingPrice ?? "" },
-			});
+			setFormData(toForm(currentProperty));
+			setInitialForm(toForm(currentProperty));
 		} catch (err) {
 			if (!mountedCheck()) return;
 			setError(err.response?.data?.message || "Failed to load property.");
 		} finally {
 			if (mountedCheck() && setBusy) setLoading(false);
 		}
-	};
+	}, [id]);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -61,7 +88,11 @@ const PropertyDetail = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, [id]);
+	}, [loadProperty]);
+
+	const changed = initialForm ? changedPaths(initialForm, formData) : [];
+	const preview = classifyChanges(changed, policies?.property, policies?.appliesDirectly);
+	const needsApproval = (field) => !policies?.appliesDirectly && policies?.property.approval.includes(field);
 
 	const handleChange = (event) => {
 		const { name, value } = event.target;
@@ -88,33 +119,24 @@ const PropertyDetail = () => {
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
-		setSaving(true);
-		setError("");
 		setNotice("");
+		if (!changed.length) {
+			setNotice("Nothing to save. No fields were changed.");
+			return;
+		}
+		setSaving(true);
 
 		try {
-			const payload = {
-				title: formData.title,
-				propertyType: formData.propertyType,
-				status: formData.status,
-				location: formData.location,
-				pricing: {
-					askingPrice:
-						formData.pricing.askingPrice === "" ?
-							""
-						:	Number(formData.pricing.askingPrice),
-				},
-			};
-
-			const response = await updateProperty(id, payload);
+			// Only the fields the user actually changed.
+			const response = await updateProperty(id, buildPatch(changed, formData, NUMERIC_FIELDS));
 			const updatedProperty = response.data.updated || property;
-			setProperty((current) =>
-				updatedProperty ? { ...current, ...updatedProperty } : current,
-			);
-
+			setProperty((current) => (updatedProperty ? { ...current, ...updatedProperty } : current));
+			setFormData(toForm(updatedProperty));
+			setInitialForm(toForm(updatedProperty));
 			setNotice(response.message || "");
+			queryClient.invalidateQueries({ queryKey: ["history", id] });
 		} catch (err) {
-			setError(err.response?.data?.message || "Unable to save property.");
+			setNotice(messageFrom(err, "Unable to save property."));
 		} finally {
 			setSaving(false);
 		}
@@ -139,7 +161,7 @@ const PropertyDetail = () => {
 			setUploadMessage("Image uploaded successfully.");
 			await loadProperty({ setBusy: false });
 		} catch (err) {
-			setUploadError(err.message || err.response?.data?.message || "Unable to upload image.");
+			setUploadError(err.response?.data?.message || err.message || "Unable to upload image.");
 		} finally {
 			setUploading(false);
 		}
@@ -212,115 +234,50 @@ const PropertyDetail = () => {
 								Edit property
 							</h2>
 							<p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-								Use this form to update the main property details and keep the
-								inventory current.
+								{policies?.appliesDirectly ?
+									"As an admin, your edits apply immediately (and are recorded in the history)."
+								:	"Most fields save immediately. Fields marked “needs approval” are sent to an admin first."}
 							</p>
 
 							<form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Title
-									</span>
-									<input
-										type="text"
-										name="title"
-										value={formData.title}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-										required
-									/>
-								</label>
+								{FIELDS.map(([name, label, options]) => {
+									const value = readPath(formData, name);
+									const inputClass = `w-full rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 dark:bg-slate-700/50 dark:text-white ${
+										changed.includes(name) ? "border-sky-400 dark:border-sky-500" : "border-slate-200 dark:border-slate-700"
+									}`;
+									return (
+										<label key={name} className="block">
+											<span className="mb-2 flex items-center justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
+												{label}
+												{needsApproval(name) ?
+													<span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+														needs approval
+													</span>
+												:	null}
+											</span>
+											{options ?
+												<select name={name} value={value} onChange={handleChange} className={inputClass}>
+													{options.map((option) => (
+														<option key={option} value={option}>
+															{option.replace(/_/g, " ")}
+														</option>
+													))}
+												</select>
+											:	<input
+													type={NUMERIC_FIELDS.has(name) ? "number" : "text"}
+													min={NUMERIC_FIELDS.has(name) ? 0 : undefined}
+													name={name}
+													value={value}
+													onChange={handleChange}
+													required={name === "title" || name === "location.city"}
+													className={inputClass}
+												/>
+											}
+										</label>
+									);
+								})}
 
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Property Type
-									</span>
-									<input
-										type="text"
-										name="propertyType"
-										value={formData.propertyType}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Status
-									</span>
-									<input
-										type="text"
-										name="status"
-										value={formData.status}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Asking Price
-									</span>
-									<input
-										type="number"
-										name="pricing.askingPrice"
-										value={formData.pricing.askingPrice}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										City
-									</span>
-									<input
-										type="text"
-										name="location.city"
-										value={formData.location.city}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Locality
-									</span>
-									<input
-										type="text"
-										name="location.locality"
-										value={formData.location.locality}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Sector
-									</span>
-									<input
-										type="text"
-										name="location.sector"
-										value={formData.location.sector}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
-
-								<label className="block">
-									<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-										Pincode
-									</span>
-									<input
-										type="text"
-										name="location.pincode"
-										value={formData.location.pincode}
-										onChange={handleChange}
-										className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-									/>
-								</label>
+								<EditPreview preview={preview} />
 
 								<button
 									type="submit"
@@ -338,6 +295,8 @@ const PropertyDetail = () => {
 								</div>
 							:	null}
 						</aside>
+
+						<RecordHistory entityId={id} />
 
 						<section className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8 xl:col-span-2">
 							<div className="flex flex-wrap items-center justify-between gap-3">

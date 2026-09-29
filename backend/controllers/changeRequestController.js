@@ -5,6 +5,28 @@ const {
 } = require("../services/approvalService");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const { isAdmin } = require("../policies");
+const { registry } = require("../services/approvalService");
+const { normalizeValue } = require("../utils/objectPath");
+
+// For a conflict, the admin needs three values per field: what the requester saw
+// (oldValue), what it is now, and what they asked for (newValue).
+const attachCurrentValues = async (requests) => {
+	const conflicts = requests.filter((cr) => cr.status === "conflict");
+	for (const entityType of ["client", "property"]) {
+		const ofType = conflicts.filter((cr) => cr.entityType === entityType);
+		if (!ofType.length) continue;
+		const ids = ofType.map((cr) => cr.entityId?._id ?? cr.entityId);
+		const entities = await registry[entityType].Model.find({ _id: { $in: ids } });
+		const byId = new Map(entities.map((e) => [e._id.toString(), e]));
+		for (const cr of ofType) {
+			const entity = byId.get(String(cr.entityId?._id ?? cr.entityId));
+			cr.currentValues = entity ?
+					Object.fromEntries(cr.changes.map((c) => [c.field, normalizeValue(entity.get(c.field))]))
+				:	null;
+		}
+	}
+	return requests;
+};
 
 const ENTITY_FIELDS = "name clientCode title propertyCode";
 
@@ -19,7 +41,8 @@ exports.getChangeRequests = async (req, res) => {
 	const filter = {};
 
 	if (!isAdmin(req.user)) filter.requestedBy = req.user._id;
-	if (status) filter.status = status;
+	if (status === "resolved") filter.status = { $ne: "pending" };
+	else if (status) filter.status = status;
 	if (entityType) filter.entityType = entityType;
 	if (from || to) {
 		filter.createdAt = {};
@@ -39,7 +62,7 @@ exports.getChangeRequests = async (req, res) => {
 
 	res.status(200).json({
 		success: true,
-		data: changeRequests,
+		data: await attachCurrentValues(changeRequests),
 		pagination: paginationMeta({ page, limit }, total),
 	});
 };

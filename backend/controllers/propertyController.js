@@ -4,6 +4,8 @@ const { proposeChanges, describeProposal } = require("../services/approvalServic
 const { escapeRegex } = require("../utils/regex");
 const { HttpError } = require("../utils/httpError");
 const lifecycle = require("../services/lifecycleService");
+const audit = require("../services/auditService");
+const mongoose = require("mongoose");
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
@@ -141,13 +143,24 @@ exports.addPropertyImage = async (req, res) => {
 		throw new HttpError(400, "Image file is required", { code: "FILE_REQUIRED" });
 	}
 
+	const image = { url: req.file.path, uploadedAt: new Date() };
 	property.images = property.images || [];
-	property.images.push({
-		url: req.file.path,
-		uploadedAt: new Date(),
-	});
+	property.images.push(image);
 
-	await property.save();
+	await mongoose.connection.transaction(async (session) => {
+		await property.save({ session });
+		await audit.record(
+			{
+				actor: req.user._id,
+				action: "property.image_upload",
+				entityType: "property",
+				entityId: property._id,
+				summary: `Uploaded an image for property ${property.title} (${property.propertyCode})`,
+				after: image,
+			},
+			{ session },
+		);
+	});
 
 	res.status(200).json({
 		success: true,

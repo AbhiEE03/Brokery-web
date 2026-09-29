@@ -18,18 +18,6 @@ const {
 	decisionBody,
 	resolveChangeRequestBody,
 } = require("../validation/schemas");
-const logActivity = require("../middleware/logActivity");
-
-const logDecision = logActivity(
-	(req, payload) => {
-		const cr = payload?.data;
-		if (!cr?.status) return null;
-		const entity = cr.entityId?.name || cr.entityId?.title || cr.entityType;
-		return `Change request for ${entity}: ${cr.status}`;
-	},
-	"change_request",
-	(req) => req.params.id,
-);
 
 router.use(verifyToken);
 
@@ -47,7 +35,7 @@ router.get(
 	getChangeRequestById,
 );
 
-const adminDecision = [requireAdmin, validate({ params: idParams, body: decisionBody }), logDecision];
+const adminDecision = [requireAdmin, validate({ params: idParams, body: decisionBody })];
 router.post("/:id/approve", ...adminDecision, approveChangeRequest);
 router.post("/:id/reject", ...adminDecision, rejectChangeRequest);
 router.post("/:id/withdraw", validate({ params: idParams }), withdrawChangeRequest);
@@ -57,7 +45,6 @@ router.patch(
 	"/:id/resolve",
 	requireAdmin,
 	validate({ params: idParams, body: resolveChangeRequestBody }),
-	logDecision,
 	resolveChangeRequest,
 );
 

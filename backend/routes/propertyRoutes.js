@@ -13,8 +13,6 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadImage } = require("../middleware/uploadMiddleware");
-const logActivity = require("../middleware/logActivity");
-const { describeUpdate } = logActivity;
 const {
 	createPropertyBody,
 	updatePropertyBody,
@@ -31,11 +29,6 @@ router.use(verifyToken);
 router.post(
 	"/",
 	validate({ body: createPropertyBody }),
-	logActivity(
-		(req, data) => `Created property ${data?.data?.propertyCode || req.body.title || "property"}`,
-		"property",
-		(req, data) => data?.data?._id,
-	),
 	createProperty,
 );
 
@@ -60,12 +53,6 @@ router.patch(
 	loadProperty,
 	authorize("update"),
 	validate({ body: updatePropertyBody }),
-	logActivity(
-		(req, payload) =>
-			describeUpdate("property", req.resource?.propertyCode || req.resource?.title, payload?.data),
-		"property",
-		(req) => req.params.id,
-	),
 	updateProperty,
 );
 

@@ -18,6 +18,7 @@ const renderLogin = () => {
 				<Routes>
 					<Route path="/login" element={<Login />} />
 					<Route path="/dashboard" element={<p>Dashboard page</p>} />
+					<Route path="/clients" element={<p>Clients page</p>} />
 				</Routes>
 			</MemoryRouter>
 		</Provider>,
@@ -45,6 +46,20 @@ describe("Login", () => {
 		expect(await screen.findByText("Dashboard page")).toBeInTheDocument();
 		expect(login).toHaveBeenCalledWith({ email: "admin@brokery.com", password: "secret" });
 		expect(store.getState().auth.token).toBe("t0ken");
+	});
+
+	test("brokers land on their clients, not the admin dashboard", async () => {
+		vi.mocked(login).mockResolvedValue({
+			token: "t0ken",
+			user: { _id: "2", name: "Tiya", role: "broker" },
+		});
+		renderLogin();
+
+		await userEvent.type(screen.getByPlaceholderText("admin@brokery.com"), "tiya@brokery.com");
+		await userEvent.type(screen.getByPlaceholderText("Enter your password"), "secret");
+		await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+		expect(await screen.findByText("Clients page")).toBeInTheDocument();
 	});
 
 	test("shows the server error message on failure", async () => {
