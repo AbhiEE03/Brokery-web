@@ -18,7 +18,10 @@ const { createMatchBody, updateMatchBody, listMatchesQuery } = require("../valid
 
 // The match policy needs the client's owner, so populate it.
 const loadMatch = loadResource(Match, "match", {
-	populate: { path: "client", select: "assignedBroker" },
+	populate: [
+		{ path: "client", select: "assignedBroker name" },
+		{ path: "property", select: "title propertyCode" },
+	],
 });
 
 router.use(verifyToken);

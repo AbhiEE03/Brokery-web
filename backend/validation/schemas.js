@@ -258,17 +258,17 @@ const listChangeRequestsQuery = z
 // Date-only "to" values (YYYY-MM-DD) include that whole day.
 const endOfDay = (date) => (date ? new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1) : date);
 
-// Keyset cursor: "<ISO createdAt>_<ObjectId>" of the last item on the previous page.
-const cursor = z
-	.string()
-	.regex(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z_[a-f\d]{24}$/i, "Invalid cursor")
-	.optional();
+// Keyset cursor: the audit sequence number of the last item on the previous page.
+const cursor = z.coerce.number().int().positive().optional();
 
 const listActivityQuery = z
 	.object({
 		...pagination,
 		cursor,
-		entityType: z.enum(["client", "property", "match", "change_request", "user"]).optional(),
+		entityType: z
+			.enum(["client", "property", "match", "change_request", "user", "ownership_claim"])
+			.optional(),
+		action: z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Invalid action").optional(),
 		broker: objectId.optional(),
 		from: z.coerce.date().optional(),
 		to: z.coerce.date().optional(),

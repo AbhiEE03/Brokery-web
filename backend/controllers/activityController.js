@@ -1,82 +1,89 @@
-const mongoose = require("mongoose");
-const ActivityLog = require("../models/ActivityLog");
+const AuditLog = require("../models/AuditLog");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const { isAdmin } = require("../policies");
+const { verifyChain } = require("../services/auditService");
 
-const encodeCursor = (log) => `${log.createdAt.toISOString()}_${log._id}`;
-
-const decodeCursor = (cursor) => {
-	const [createdAt, id] = cursor.split("_");
-	return { createdAt: new Date(createdAt), id: new mongoose.Types.ObjectId(id) };
-};
-
-const buildFilter = (user, { entityType, broker, from, to }) => {
+const buildFilter = (user, { entityType, broker, action, from, to }) => {
 	const filter = {};
 
 	// Brokers only see their own actions; admins can filter by broker.
-	if (!isAdmin(user)) filter.performedBy = user._id;
-	else if (broker) filter.performedBy = broker;
+	if (!isAdmin(user)) filter.actor = user._id;
+	else if (broker) filter.actor = broker;
 
-	if (entityType) filter.entity = entityType;
+	if (entityType) filter.entityType = entityType;
+	if (action) filter.action = action;
 	if (from || to) {
-		filter.createdAt = {};
-		if (from) filter.createdAt.$gte = from;
-		if (to) filter.createdAt.$lte = to;
+		filter.at = {};
+		if (from) filter.at.$gte = from;
+		if (to) filter.at.$lte = to;
 	}
 	return filter;
 };
 
+// Shape kept compatible with the activity feed UI (performedBy/action/entity/createdAt).
+const toFeedItem = (entry) => ({
+	_id: entry._id,
+	seq: entry.seq,
+	performedBy: entry.actor,
+	action: entry.summary,
+	actionCode: entry.action,
+	entity: entry.entityType,
+	entityId: entry.entityId,
+	subject: entry.subject?.id ? entry.subject : null,
+	before: entry.before,
+	after: entry.after,
+	meta: entry.meta,
+	requestId: entry.requestId,
+	legacy: entry.legacy,
+	hash: entry.hash,
+	createdAt: entry.at,
+});
+
 /**
  * Two pagination modes:
  * - ?page=N (offset) — what the UI uses today; cost grows with the page number.
- * - ?cursor=… (keyset) — constant cost at any depth: "createdAt/_id before the
- *   last row I saw", served by the { createdAt: -1, _id: -1 } index.
+ * - ?cursor=<seq> (keyset) — constant cost at any depth: "entries older than the
+ *   last one I saw". The audit sequence is a gap-free, unique sort key.
  * Every response includes nextCursor for keyset clients.
  */
-const listLogs = async (filter, query) => {
+const listEntries = async (filter, query) => {
 	const { page, limit, cursor } = query;
-	let find = ActivityLog.find(filter);
+	let find = AuditLog.find(cursor ? { ...filter, seq: { $lt: cursor } } : filter);
+	if (!cursor) find = find.skip(toSkip({ page, limit }));
 
-	if (cursor) {
-		const { createdAt, id } = decodeCursor(cursor);
-		find = ActivityLog.find({
-			...filter,
-			$or: [{ createdAt: { $lt: createdAt } }, { createdAt, _id: { $lt: id } }],
-		});
-	} else {
-		find = find.skip(toSkip({ page, limit }));
-	}
-
-	const [logs, total] = await Promise.all([
-		find
-			.sort({ createdAt: -1, _id: -1 })
-			.limit(limit)
-			.populate("performedBy", "name email role")
-			.lean(),
-		ActivityLog.countDocuments(filter),
+	const [entries, total] = await Promise.all([
+		find.sort({ seq: -1 }).limit(limit).populate("actor", "name email role").lean(),
+		AuditLog.countDocuments(filter),
 	]);
 
 	return {
-		data: logs,
+		data: entries.map(toFeedItem),
 		pagination: {
 			...paginationMeta({ page, limit }, total),
-			nextCursor: logs.length === limit ? encodeCursor(logs[logs.length - 1]) : null,
+			nextCursor: entries.length === limit ? entries[entries.length - 1].seq : null,
 		},
 	};
 };
 
 exports.getLogs = async (req, res) => {
 	const query = req.validated.query;
-	const result = await listLogs(buildFilter(req.user, query), query);
+	const result = await listEntries(buildFilter(req.user, query), query);
 	res.status(200).json({ success: true, ...result });
 };
 
+// History of one record: entries about it directly, plus change requests,
+// matches and claims whose subject it is.
 exports.getLogsByEntity = async (req, res) => {
 	const query = req.validated.query;
+	const { entityId } = req.validated.params;
 	const filter = {
 		...buildFilter(req.user, query),
-		entityId: req.validated.params.entityId,
+		$or: [{ entityId }, { "subject.id": entityId }],
 	};
-	const result = await listLogs(filter, query);
+	const result = await listEntries(filter, query);
 	res.status(200).json({ success: true, ...result });
+};
+
+exports.verifyAuditChain = async (req, res) => {
+	res.status(200).json({ success: true, data: await verifyChain() });
 };

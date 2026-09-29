@@ -11,6 +11,7 @@ const Match = require("../models/Match");
 const ChangeRequest = require("../models/ChangeRequest");
 const StageTransition = require("../models/StageTransition");
 const ActivityLog = require("../models/ActivityLog");
+const AuditLog = require("../models/AuditLog");
 const Notification = require("../models/Notification");
 const Counter = require("../models/Counter");
 
@@ -830,7 +831,7 @@ const seedDatabase = async ({ adminPassword }) => {
 	}
 
 	console.log("Clearing existing data...");
-	for (const Model of [Match, Client, Property, User, ChangeRequest, StageTransition, ActivityLog, Notification, Counter]) {
+	for (const Model of [Match, Client, Property, User, ChangeRequest, StageTransition, ActivityLog, AuditLog, Notification, Counter]) {
 		await Model.collection.deleteMany({});
 	}
 

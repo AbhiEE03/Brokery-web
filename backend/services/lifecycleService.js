@@ -9,6 +9,27 @@ const Match = require("../models/Match");
 const ChangeRequest = require("../models/ChangeRequest");
 const StageTransition = require("../models/StageTransition");
 const { nextClientCode, nextPropertyCode } = require("../utils/codeGenerator");
+const audit = require("./auditService");
+
+// Fields captured in the audit entry when a record is created.
+const clientSnapshot = (c) => ({
+	clientCode: c.clientCode,
+	name: c.name,
+	phone: c.phone,
+	email: c.email ?? null,
+	assignedBroker: c.assignedBroker?._id ?? c.assignedBroker ?? null,
+	pipelineStage: c.pipelineStage,
+	requirements: c.requirements?.toObject ? c.requirements.toObject() : c.requirements ?? null,
+});
+
+const propertySnapshot = (p) => ({
+	propertyCode: p.propertyCode,
+	title: p.title,
+	propertyType: p.propertyType ?? null,
+	status: p.status,
+	location: p.location?.toObject ? p.location.toObject() : p.location ?? null,
+	askingPrice: p.pricing?.askingPrice ?? null,
+});
 
 const createClient = async ({ data, actor }) => {
 	let client;
@@ -22,6 +43,17 @@ const createClient = async ({ data, actor }) => {
 			[{ client: client._id, from: null, to: "lead", changedBy: actor._id, via: "create" }],
 			{ session },
 		);
+		await audit.record(
+			{
+				actor: actor._id,
+				action: "client.create",
+				entityType: "client",
+				entityId: client._id,
+				summary: `Created client ${client.name} (${clientCode})`,
+				after: clientSnapshot(client),
+			},
+			{ session },
+		);
 	});
 	return client;
 };
@@ -32,6 +64,17 @@ const createProperty = async ({ data, actor }) => {
 		const propertyCode = await nextPropertyCode({ session });
 		[property] = await Property.create(
 			[{ ...data, propertyCode, status: "available", addedBy: actor._id }],
+			{ session },
+		);
+		await audit.record(
+			{
+				actor: actor._id,
+				action: "property.create",
+				entityType: "property",
+				entityId: property._id,
+				summary: `Created property ${property.title} (${propertyCode})`,
+				after: propertySnapshot(property),
+			},
 			{ session },
 		);
 	});
@@ -58,7 +101,19 @@ const softDeleteEntity = async ({ entityType, entity, actor }) => {
 			},
 			{ session },
 		);
+		const label = entityType === "client" ? `${entity.name} (${entity.clientCode})` : `${entity.title} (${entity.propertyCode})`;
+		await audit.record(
+			{
+				actor: actor._id,
+				action: `${entityType}.delete`,
+				entityType,
+				entityId: entity._id,
+				summary: `Deleted ${entityType} ${label}`,
+				before: entityType === "client" ? clientSnapshot(entity) : propertySnapshot(entity),
+			},
+			{ session },
+		);
 	});
 };
 
-module.exports = { createClient, createProperty, softDeleteEntity };
+module.exports = { createClient, createProperty, softDeleteEntity, clientSnapshot, propertySnapshot };

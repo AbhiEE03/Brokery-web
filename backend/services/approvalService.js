@@ -25,6 +25,7 @@ const { flattenPayload, normalizeValue, valuesEqual } = require("../utils/object
 const { HttpError } = require("../utils/httpError");
 const { isAdmin, sameId } = require("../policies");
 const { dispatchSoon } = require("./notificationService");
+const audit = require("./auditService");
 
 const registry = {
 	client: { Model: Client, rules: clientRules },
@@ -103,6 +104,15 @@ const recordStageTransitions = async ({ entityType, entity, changes, actor, via,
 		{ session },
 	);
 };
+
+const labelOf = (entityType, entity) => {
+	if (!entity) return entityType;
+	return entityType === "client" ?
+			`${entity.name} (${entity.clientCode})`
+		:	`${entity.title} (${entity.propertyCode})`;
+};
+
+const fieldList = (changes) => changes.map((c) => c.field).join(", ");
 
 const bumpRevision = (Model, entityId, session) =>
 	Model.updateOne({ _id: entityId }, { $inc: { revision: 1 } }, { session });
@@ -208,8 +218,35 @@ const proposeChanges = async ({ entityType, entityId, patch, actor }) => {
 				via: "direct",
 				session,
 			});
+			await audit.record(
+				{
+					actor: actor._id,
+					action: `${entityType}.update`,
+					entityType,
+					entityId: entity._id,
+					summary: `Updated ${entityType} ${labelOf(entityType, entity)}: ${fieldList(directChanges)}`,
+					...audit.changeSets(directChanges),
+				},
+				{ session },
+			);
 		} else if (pending && !reusedExisting) {
 			await bumpRevision(Model, entityId, session);
+		}
+
+		if (pending && !reusedExisting) {
+			await audit.record(
+				{
+					actor: actor._id,
+					action: "change_request.create",
+					entityType: "change_request",
+					entityId: pending._id,
+					subject: { type: entityType, id: entity._id },
+					summary: `Requested approval for ${entityType} ${labelOf(entityType, entity)}: ${fieldList(pending.changes)}`,
+					...audit.changeSets(pending.changes),
+					meta: superseded.length ? { superseded } : null,
+				},
+				{ session },
+			);
 		}
 
 		result = {
@@ -302,9 +339,10 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 			});
 		}
 
+		const { Model } = getEntry(cr.entityType);
+		const entity = await Model.findById(cr.entityId).session(session);
+
 		if (decision === "approved") {
-			const { Model } = getEntry(cr.entityType);
-			const entity = await Model.findById(cr.entityId).session(session);
 
 			// Stale detection: the requester saw oldValue; if someone changed the field
 			// since, applying newValue would silently overwrite their change.
@@ -333,6 +371,23 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 			}
 		}
 
+		await audit.record(
+			{
+				actor: actor._id,
+				action: `change_request.${cr.status}`,
+				entityType: "change_request",
+				entityId: cr._id,
+				subject: { type: cr.entityType, id: cr.entityId },
+				summary: `Change request for ${cr.entityType} ${labelOf(cr.entityType, entity)} ${cr.status}: ${fieldList(cr.changes)}`,
+				...audit.changeSets(cr.changes),
+				meta: {
+					...(cr.adminNote ? { adminNote: cr.adminNote } : {}),
+					...(cr.conflictFields?.length ? { conflictFields: cr.conflictFields } : {}),
+				},
+			},
+			{ session },
+		);
+
 		await Notification.create(
 			[
 				{
@@ -360,11 +415,27 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 };
 
 const withdrawChangeRequest = async ({ id, actor }) => {
-	const cr = await ChangeRequest.findOneAndUpdate(
-		{ _id: id, status: "pending", requestedBy: actor._id },
-		{ $set: { status: "withdrawn", resolvedAt: new Date() } },
-		{ returnDocument: "after" },
-	);
+	let cr;
+	await mongoose.connection.transaction(async (session) => {
+		cr = await ChangeRequest.findOneAndUpdate(
+			{ _id: id, status: "pending", requestedBy: actor._id },
+			{ $set: { status: "withdrawn", resolvedAt: new Date() } },
+			{ returnDocument: "after", session },
+		);
+		if (!cr) return;
+		await audit.record(
+			{
+				actor: actor._id,
+				action: "change_request.withdrawn",
+				entityType: "change_request",
+				entityId: cr._id,
+				subject: { type: cr.entityType, id: cr.entityId },
+				summary: `Withdrew change request for ${cr.entityType}: ${fieldList(cr.changes)}`,
+				...audit.changeSets(cr.changes),
+			},
+			{ session },
+		);
+	});
 	if (cr) return cr;
 
 	const existing = await ChangeRequest.findById(id).lean();

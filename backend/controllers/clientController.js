@@ -4,6 +4,8 @@ const { proposeChanges, describeProposal } = require("../services/approvalServic
 const { escapeRegex } = require("../utils/regex");
 const { HttpError } = require("../utils/httpError");
 const lifecycle = require("../services/lifecycleService");
+const audit = require("../services/auditService");
+const mongoose = require("mongoose");
 
 // Create a new client and auto-generate a clientCode
 exports.createClient = async (req, res) => {
@@ -115,15 +117,29 @@ exports.addClientDocument = async (req, res) => {
 		throw new HttpError(400, "Document file is required", { code: "FILE_REQUIRED" });
 	}
 
-	client.documents = client.documents || [];
-	client.documents.push({
+	const document = {
 		name: req.file.originalname,
 		url: req.file.path,
 		type: DOCUMENT_TYPES.includes(req.body?.type) ? req.body.type : "other",
 		uploadedAt: new Date(),
-	});
+	};
+	client.documents = client.documents || [];
+	client.documents.push(document);
 
-	await client.save();
+	await mongoose.connection.transaction(async (session) => {
+		await client.save({ session });
+		await audit.record(
+			{
+				actor: req.user._id,
+				action: "client.document_upload",
+				entityType: "client",
+				entityId: client._id,
+				summary: `Uploaded ${document.type.replace("_", " ")} "${document.name}" for client ${client.name}`,
+				after: document,
+			},
+			{ session },
+		);
+	});
 
 	res.status(200).json({
 		success: true,
