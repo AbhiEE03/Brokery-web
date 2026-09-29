@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Building2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { login } from "../api/authApi";
 import { setCredentials } from "../store/authSlice";
+import { homePathFor } from "../auth/roles";
 
 const Login = () => {
 	const dispatch = useDispatch();
@@ -12,6 +13,7 @@ const Login = () => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+	const notice = useSelector((state) => state.auth.notice);
 
 	const handleChange = (event) => {
 		const { name, value } = event.target;
@@ -26,7 +28,7 @@ const Login = () => {
 		try {
 			const data = await login(formData);
 			dispatch(setCredentials({ user: data.user, token: data.token }));
-			navigate("/dashboard", { replace: true });
+			navigate(homePathFor(data.user), { replace: true });
 		} catch (err) {
 			setError(
 				err.response?.data?.message || "Unable to sign in. Please try again.",
@@ -124,6 +126,11 @@ const Login = () => {
 								</div>
 							</label>
 
+							{notice && !error ?
+								<div role="status" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+									{notice}
+								</div>
+							:	null}
 							{error ?
 								<div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
 									{error}

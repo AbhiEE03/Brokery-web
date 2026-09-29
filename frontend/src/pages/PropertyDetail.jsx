@@ -139,7 +139,7 @@ const PropertyDetail = () => {
 			setUploadMessage("Image uploaded successfully.");
 			await loadProperty({ setBusy: false });
 		} catch (err) {
-			setUploadError(err.message || err.response?.data?.message || "Unable to upload image.");
+			setUploadError(err.response?.data?.message || err.message || "Unable to upload image.");
 		} finally {
 			setUploading(false);
 		}

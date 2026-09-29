@@ -18,18 +18,22 @@ const authSlice = createSlice({
 	initialState: {
 		user: initialAuth.user,
 		token: initialAuth.token,
+		// Shown on the login page after an automatic logout (e.g. expired session).
+		notice: null,
 	},
 	reducers: {
 		setCredentials: (state, action) => {
 			const { user, token } = action.payload;
 			state.user = user;
 			state.token = token;
+			state.notice = null;
 			localStorage.setItem("brokery_user", JSON.stringify(user));
 			localStorage.setItem("brokery_token", token);
 		},
-		logout: (state) => {
+		logout: (state, action) => {
 			state.user = null;
 			state.token = null;
+			state.notice = action?.payload?.notice ?? null;
 			localStorage.removeItem("brokery_user");
 			localStorage.removeItem("brokery_token");
 		},

@@ -169,7 +169,7 @@ const ClientDetail = () => {
 			setUploadMessage("Document uploaded successfully.");
 			await loadClient({ setBusy: false });
 		} catch (err) {
-			setUploadError(err.message || err.response?.data?.message || "Unable to upload document.");
+			setUploadError(err.response?.data?.message || err.message || "Unable to upload document.");
 		} finally {
 			setUploading(false);
 		}
