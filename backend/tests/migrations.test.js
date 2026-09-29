@@ -138,3 +138,41 @@ describe("migration: activity log into the audit chain", () => {
 		expect(await audit.verifyChain()).toEqual({ ok: true, checked: 4 });
 	});
 });
+
+describe("migration: client phone keys", () => {
+	const migration = require("../migrations/20260930090100-backfill-client-phone-keys");
+
+	test("keys the oldest live client per number, reports duplicates and invalid numbers, idempotently", async () => {
+		const db = mongoose.connection.db;
+		// Collection created without the model's index, like production before the migration.
+		await db.collection("clients").drop().catch(() => {});
+		await db.collection("clients").insertMany([
+			{ clientCode: "CL-000001", phone: "9876543210", createdAt: new Date("2026-01-01") },
+			{ clientCode: "CL-000002", phone: "+91 98765 43210", createdAt: new Date("2026-02-01") },
+			{ clientCode: "CL-000003", phone: "12345", createdAt: new Date("2026-03-01") },
+			{ clientCode: "CL-000004", phone: "9123456789", createdAt: new Date("2026-04-01"), deletedAt: new Date() },
+			{ clientCode: "CL-000005", phone: "091234 56789", createdAt: new Date("2026-05-01") },
+		]);
+
+		const log = jest.spyOn(console, "log").mockImplementation(() => {});
+		const first = await migration.up(db);
+		const second = await migration.up(db);
+		log.mockRestore();
+
+		expect(first).toEqual({ keyed: 2, duplicates: ["CL-000002 duplicates CL-000001"], invalid: ["CL-000003"] });
+		expect(second).toEqual(first);
+		const keys = Object.fromEntries(
+			(await db.collection("clients").find().toArray()).map((c) => [c.clientCode, c.phoneKey ?? null]),
+		);
+		expect(keys).toEqual({
+			"CL-000001": "+919876543210",
+			"CL-000002": null,
+			"CL-000003": null,
+			"CL-000004": null,
+			"CL-000005": "+919123456789",
+		});
+		await expect(
+			db.collection("clients").insertOne({ clientCode: "CL-000006", phoneKey: "+919876543210" }),
+		).rejects.toMatchObject({ code: 11000 });
+	});
+});
