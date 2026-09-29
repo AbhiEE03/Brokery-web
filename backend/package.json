@@ -7,7 +7,8 @@
 		"start": "node server.js",
 		"dev": "nodemon server.js",
 		"create-admin": "node scripts/createAdmin.js",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "jest --runInBand",
+		"dev:sandbox": "node scripts/devServer.js"
 	},
 	"keywords": [],
 	"author": "",
@@ -25,6 +26,21 @@
 		"nodemailer": "^10.0.12"
 	},
 	"devDependencies": {
-		"nodemon": "^3.1.14"
+		"jest": "^29.7.0",
+		"mongodb-memory-server": "^11.3.0",
+		"nodemon": "^3.1.14",
+		"supertest": "^7.3.0"
+	},
+	"jest": {
+		"testEnvironment": "node",
+		"globalSetup": "<rootDir>/tests/globalSetup.js",
+		"globalTeardown": "<rootDir>/tests/globalTeardown.js",
+		"setupFilesAfterEnv": [
+			"<rootDir>/tests/setup.js"
+		],
+		"testMatch": [
+			"<rootDir>/tests/**/*.test.js"
+		],
+		"testTimeout": 30000
 	}
 }
