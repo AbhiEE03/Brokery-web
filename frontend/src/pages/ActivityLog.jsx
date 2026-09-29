@@ -9,6 +9,7 @@ const entityTypeOptions = [
 	"property",
 	"match",
 	"change_request",
+	"ownership_claim",
 	"user",
 ];
 

@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLog from "./pages/ActivityLog";
 import ChangeRequests from "./pages/ChangeRequests";
 import Matches from "./pages/Matches";
+import OwnershipClaims from "./pages/OwnershipClaims";
 
 function App() {
 	const { theme } = useTheme();
@@ -34,6 +35,7 @@ function App() {
 						/>
 						<Route path="/change-requests" element={<ChangeRequests />} />
 						<Route path="/activity-log" element={<ActivityLog />} />
+						<Route path="/ownership-claims" element={<OwnershipClaims />} />
 					</Route>
 				</Route>
 

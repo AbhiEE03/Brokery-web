@@ -101,7 +101,8 @@ const Clients = () => {
 				page: 1,
 			}));
 		} catch (err) {
-			setError(err.response?.data?.message || "Unable to create client.");
+			const body = err.response?.data;
+			setError(body?.details?.errors?.[0]?.message || body?.message || "Unable to create client.");
 		} finally {
 			setCreating(false);
 		}

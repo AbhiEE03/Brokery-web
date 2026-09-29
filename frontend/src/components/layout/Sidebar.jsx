@@ -8,6 +8,7 @@ import {
 	WalletCards,
 	GitBranch,
 	History,
+	ShieldAlert,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -113,6 +114,12 @@ const Sidebar = () => {
 							<ListChecks size={18} />
 							Change Requests
 						</NavLink>
+						{isAdmin ? (
+							<NavLink to="/ownership-claims" className={navItemClassName}>
+								<ShieldAlert size={18} />
+								Ownership Claims
+							</NavLink>
+						) : null}
 						{isAdmin ? (
 							<NavLink to="/activity-log" className={navItemClassName}>
 								<History size={18} />
