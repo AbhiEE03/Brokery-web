@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { normalizeIndianMobile, INVALID_MOBILE_MESSAGE } = require("../utils/phone");
 const { MAX_LIMIT } = require("../utils/pagination");
 
 const PIPELINE_STAGES = ["lead", "contacted", "site_visit", "negotiation", "closed", "lost"];
@@ -87,9 +88,15 @@ const requirementsCreate = z
 	});
 
 // pipelineStage, clientCode, documents and timestamps are server-controlled and stripped.
+const indianMobile = z
+	.string()
+	.trim()
+	.max(20)
+	.refine((value) => normalizeIndianMobile(value) !== null, INVALID_MOBILE_MESSAGE);
+
 const createClientBody = z.object({
 	name: z.string().trim().min(1).max(100),
-	phone: z.string().trim().min(7).max(20),
+	phone: indianMobile,
 	email: optionalEmail,
 	notes: optionalText(2000),
 	requirements: requirementsCreate.optional(),
@@ -98,7 +105,7 @@ const createClientBody = z.object({
 
 const updateClientBody = z.object({
 	name: z.string().trim().min(1).max(100).optional(),
-	phone: z.string().trim().min(7).max(20).optional(),
+	phone: indianMobile.optional(),
 	email: clearable(z.email().max(254)),
 	notes: clearable(z.string().max(2000)),
 	pipelineStage: z.enum(PIPELINE_STAGES).optional(),
@@ -239,6 +246,16 @@ const decisionBody = z.object({
 	adminNote: z.string().trim().max(500).optional(),
 });
 
+const listOwnershipClaimsQuery = z.object({
+	...pagination,
+	status: z.enum(["open", "upheld", "transferred"]).optional(),
+});
+
+const resolveOwnershipClaimBody = z.object({
+	decision: z.enum(["keep", "transfer"]),
+	note: z.string().trim().max(500).optional(),
+});
+
 const listChangeRequestsQuery = z
 	.object({
 		...pagination,
@@ -302,6 +319,8 @@ module.exports = {
 	decisionBody,
 	listChangeRequestsQuery,
 	listActivityQuery,
+	listOwnershipClaimsQuery,
+	resolveOwnershipClaimBody,
 	listMatchesQuery,
 	entityParams,
 };

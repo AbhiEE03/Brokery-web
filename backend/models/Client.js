@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const softDelete = require("./plugins/softDelete");
+const { normalizeIndianMobile, INVALID_MOBILE_MESSAGE } = require("../utils/phone");
 
 const clientSchema = new mongoose.Schema({
 	clientCode: {
@@ -15,6 +16,11 @@ const clientSchema = new mongoose.Schema({
 		type: String,
 		required: true,
 		trim: true,
+	},
+	// Canonical "+91XXXXXXXXXX" of the phone, unique among live clients: one buyer,
+	// one owning broker. Unset on soft delete so the number can be registered again.
+	phoneKey: {
+		type: String,
 	},
 	email: {
 		type: String,
@@ -101,6 +107,13 @@ clientSchema.pre("validate", function () {
 	if (this.requirements) {
 		this.requirements.cityKey = this.requirements.city?.trim().toLowerCase() || undefined;
 	}
+	if (this.isNew || this.isModified("phone") || this.isModified("deletedAt")) {
+		const key = normalizeIndianMobile(this.phone);
+		if (!key && (this.isNew || this.isModified("phone"))) {
+			this.invalidate("phone", INVALID_MOBILE_MESSAGE);
+		}
+		this.phoneKey = this.deletedAt ? undefined : key || undefined;
+	}
 	const r = this.requirements || {};
 	const isSet = (v) => typeof v === "number";
 	if (isSet(r.minBudget) && isSet(r.maxBudget) && r.minBudget > r.maxBudget) {
@@ -116,5 +129,11 @@ clientSchema.index({ assignedBroker: 1, createdAt: -1 });
 clientSchema.index({ pipelineStage: 1, createdAt: -1 });
 clientSchema.index({ createdAt: -1 });
 clientSchema.index({ "requirements.cityKey": 1 });
+// The database, not application code, guarantees one live client per number —
+// including when two brokers submit the same buyer at the same moment.
+clientSchema.index(
+	{ phoneKey: 1 },
+	{ unique: true, partialFilterExpression: { phoneKey: { $type: "string" } } },
+);
 
 module.exports = mongoose.model("Client", clientSchema);
