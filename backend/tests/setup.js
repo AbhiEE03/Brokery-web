@@ -24,6 +24,8 @@ require("../models/Property");
 require("../models/Match");
 require("../models/ChangeRequest");
 require("../models/Notification");
+require("../models/StageTransition");
+require("../models/Counter");
 require("../models/ActivityLog");
 
 beforeAll(async () => {

@@ -65,3 +65,45 @@ describe("migration: merge change requests", () => {
 		expect(await ChangeRequest.countDocuments()).toBe(1);
 	});
 });
+
+describe("migration: backfill stage transitions", () => {
+	const backfill = require("../migrations/20260929130000-backfill-stage-transitions");
+	const StageTransition = require("../models/StageTransition");
+
+	test("adds one flagged row per client without history, and is idempotent", async () => {
+		const db = mongoose.connection.db;
+		const created = new Date("2026-05-01");
+		const closedAt = new Date("2026-06-10");
+		const { insertedIds } = await db.collection("clients").insertMany([
+			{ clientCode: "CL-000001", name: "A", pipelineStage: "closed", createdAt: created, updatedAt: closedAt },
+			{ clientCode: "CL-000002", name: "B", pipelineStage: "lead", createdAt: created, updatedAt: closedAt },
+		]);
+
+		await backfill.up(db);
+		await backfill.up(db);
+
+		const rows = await StageTransition.find().sort({ to: 1 }).lean();
+		expect(rows).toHaveLength(2);
+		expect(rows[0]).toMatchObject({ to: "closed", backfilled: true, at: closedAt });
+		expect(rows[1]).toMatchObject({ to: "lead", at: created });
+		expect(rows[0].client.toString()).toBe(insertedIds[0].toString());
+	});
+});
+
+describe("migration: code counters", () => {
+	const initCounters = require("../migrations/20260929130200-init-code-counters");
+	const { nextPropertyCode, nextClientCode } = require("../utils/codeGenerator");
+
+	test("new codes continue after the highest existing code", async () => {
+		const db = mongoose.connection.db;
+		await db.collection("clients").insertMany([{ clientCode: "CL-000009" }, { clientCode: "CL-000012" }]);
+		// "99ZZ" sorts after "100AA" as a string; decoding must still find the max.
+		await db.collection("properties").insertMany([{ propertyCode: "99ZZ" }, { propertyCode: "100AA" }]);
+
+		await initCounters.up(db);
+		await initCounters.up(db);
+
+		expect(await nextClientCode()).toBe("CL-000013");
+		expect(await nextPropertyCode()).toBe("100AB");
+	});
+});
