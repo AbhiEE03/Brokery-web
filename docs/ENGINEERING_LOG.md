@@ -111,3 +111,39 @@ Property search uses the text index for whole words and falls back to a substrin
 - Three concurrent "transfer" clicks: one 200, two 409s.
 
 **Trade-off:** one counter document serialises audit writes. That's fine at CRM volumes; beyond that you'd chain per entity or hash in batches. The chain proves integrity against edits, not against someone rewriting the whole database. Publishing the head hash periodically would cover that.
+
+---
+
+## 2026-09-30 — Frontend: the bugs users actually hit
+
+**Problems** (found in the code review, reproduced in the browser):
+- Brokers were sent to the admin dashboard after login, and their first screen was an error card.
+- An expired token never signed anyone out; every page just showed errors after 7 days.
+- Dark mode couldn't be switched off after starting dark: `App` and `Sidebar` each kept their own theme state.
+- Edit forms sent every field on every save.
+- Approve and reject used `window.confirm` and `window.prompt`.
+- Conflicts showed only "not applied", without the values involved.
+- The property list was hard-capped at 100 with no pages.
+- Upload errors showed Axios's generic message instead of the server's.
+
+**Fixes:**
+- **Routing:** each role has a home page (`/dashboard` or `/clients`), and a `RequireRole` guard covers admin screens.
+- **Sessions:** a response interceptor signs the user out on any 401 (except the login call itself) and explains why on the login page. The React Query cache is cleared on every logout, so the next user never sees the previous user's data.
+- **Theme:** one `ThemeProvider`.
+- **Edit forms:**
+  - The form is diffed against what was loaded, and only the changed paths are sent.
+  - `GET /api/meta/edit-policies` tells the UI which of those fields need approval, so the rules live only on the server.
+  - A per-record history panel shows the audit log. Brokers can see any action on records they can read, but not ownership claims, which name the competing broker.
+- **Approval queue:** Pending / Conflicts / History tabs. The API attaches each conflicted field's *current* value, so an admin sees "requester saw → now → requested".
+- **Dialogs:** a promise-based `useConfirmDialog()` replaces the browser prompts: `const result = await confirm({...})`.
+- **Properties:** server-side pages with a debounced search box.
+
+**Tests:**
+- React Testing Library covers the following:
+  - brokers never land on the dashboard, whatever URL they open
+  - a 401 signs out; a 403 or a failed login doesn't
+  - only the changed field is sent
+  - saving with no changes sends nothing
+  - the approval dialog flow
+  - one theme toggle updates every consumer
+- One Playwright test runs the full approval flow in a browser against the sandbox API. It runs in CI, and locally with the installed Edge.
