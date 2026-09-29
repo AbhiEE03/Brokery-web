@@ -1,17 +1,9 @@
 # Brokery CRM
 
-## What it does
+A role-based CRM for small real-estate brokerages: brokers manage their clients and property inventory, and changes to money-affecting fields (deal stage, budgets, asking price) go through an admin approval step instead of applying silently.
 
-- Role-based access for Admin and Broker — enforced at middleware level, not just the UI
-- Sensitive field edits (pipeline stage, budget) don't apply directly — they create a ChangeRequest that admin reviews with a before/after diff. Low-risk fields like phone and notes update immediately
-- Dashboard pulls live data from 5 MongoDB aggregation queries — broker performance, pipeline breakdown, closed deals by month, inventory by city
-- Properties get auto-assigned alphanumeric codes (00AA → 00AB → ... → 01AA) on creation
-- Every write action is logged automatically — actor, entity type, timestamp — without blocking the response
-- Client documents and property images upload to Cloudinary via Multer
-- Email goes out via Nodemailer when a ChangeRequest gets approved or rejected
-
-  **Frontend:** https://brokery-ruddy.vercel.app  
-  **Backend API:** https://brokery-api.onrender.com
+**Frontend:** https://brokery-ruddy.vercel.app  
+**Backend API:** https://brokery-api.onrender.com
 
 ---
 
@@ -29,14 +21,26 @@
 
 ## Features
 
-- **RBAC** — Admin and Broker roles with protected routes and middleware-level enforcement
-- **Two-tier edit approval** — sensitive fields (pipeline stage, budget) create a ChangeRequest routed to admin with visual diff; low-risk fields (phone, notes) update directly
-- **Analytics Dashboard** — 5 MongoDB aggregation endpoints powering live charts (broker performance, pipeline distribution, deals by month, inventory by city)
-- **Property Matching Engine** — links client requirements to properties via interest-level flags
-- **Alphanumeric Code Generator** — auto-increments property codes (00AA → 00AB → ... → 01AA) with collision-safe max-query increment
-- **Activity Log** — middleware wraps res.json to asynchronously record every write action with actor, entity, and timestamp
-- **Cloudinary Uploads** — client documents and property images via Multer middleware
-- **Email Notifications** — Nodemailer sends alerts on ChangeRequest resolution
+- **Roles** — Admin and Broker. Admin-only routes (analytics, user registration, deletes, approvals) are enforced by backend middleware; brokers only see their own clients.
+- **Two-tier edits** — low-risk fields (phone, notes, locality…) update immediately; sensitive fields (pipeline stage, budget, city, asking price…) create a change request that an admin approves or rejects with a before/after view. Field rules live in `backend/utils/*EditRules.js`.
+- **Analytics dashboard** — MongoDB aggregation endpoints for pipeline distribution, broker conversion, monthly closures and available inventory by city, rendered with Recharts.
+- **Client–property links** — brokers record which client is interested in which property and how strongly (manual links; see Roadmap for automated matching).
+- **Readable codes** — clients get `CL-000001`-style codes; properties get `00AA → 00AB → … → 01AA` codes.
+- **Activity log** — create/update actions on clients and properties and approval decisions are recorded with the acting user.
+- **Uploads** — client documents (PDF/images) and property images are stored on Cloudinary; file types are verified by content signature, 5 MB limit.
+- **Email** — the requesting broker is emailed when their change request is approved or rejected.
+
+## Roadmap
+
+Work in progress, in order:
+
+1. Automated test suite (authorization matrix, approval flows) + CI
+2. Object-level authorization and request validation on every endpoint
+3. A single, transactional approval engine for clients **and** properties, with stale-change detection
+4. Platform hardening (central error handling, rate limiting, structured logs, health checks)
+5. Stage-history based analytics, indexes, pagination and a published benchmark
+6. Tamper-evident audit log and duplicate-client ownership protection
+7. Explainable client↔property matching and buyer shortlist links
 
 ---
 
@@ -72,9 +76,9 @@ npm run dev
 
 Frontend runs on `http://localhost:5173`, backend on `http://localhost:5000`.
 
-Seed the database with demo data:
+Seed a **development** database with demo data (wipes existing data; refuses to run with `NODE_ENV=production`):
 
 ```bash
 cd backend
-node scripts/seed.js
+ADMIN_PASSWORD='<choose one>' node scripts/seed.js
 ```
