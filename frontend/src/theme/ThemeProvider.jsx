@@ -1,4 +1,5 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ThemeContext } from "./themeContext";
 
 const STORAGE_KEY = "theme";
 
@@ -11,8 +12,6 @@ const readInitialTheme = () => {
 	}
 	return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
-
-export const ThemeContext = createContext(null);
 
 /**
  * One theme state for the whole app. Before this, App and Sidebar each kept
