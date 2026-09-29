@@ -104,8 +104,8 @@ const ActivityLog = () => {
 			limit: pagination.limit,
 			entityType: entityType === "all" ? undefined : entityType,
 			broker: isAdmin && broker ? broker : undefined,
-			startDate: startDate || undefined,
-			endDate: endDate || undefined,
+			from: startDate || undefined,
+			to: endDate || undefined,
 		}),
 		[
 			pagination.page,

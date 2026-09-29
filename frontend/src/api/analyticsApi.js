@@ -20,6 +20,16 @@ export const getBrokerPerformance = async () => {
 	return data;
 };
 
+export const getFunnel = async () => {
+	const { data } = await api.get("/analytics/funnel");
+	return data;
+};
+
+export const getTimeInStage = async () => {
+	const { data } = await api.get("/analytics/time-in-stage");
+	return data;
+};
+
 export const getPropertyByCity = async () => {
 	const { data } = await api.get("/analytics/property-by-city");
 	return data;

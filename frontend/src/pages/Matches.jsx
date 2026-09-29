@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { createMatch, getMatches } from "../api/matchApi";
 import { getClients } from "../api/clientApi";
@@ -30,8 +29,6 @@ const getInterestTone = (value) => {
 const getStatusTone = () => "bg-emerald-50 text-emerald-700";
 
 const Matches = () => {
-	const user = useSelector((state) => state.auth.user);
-	const isAdmin = user?.role === "admin";
 	const [matches, setMatches] = useState([]);
 	const [pagination, setPagination] = useState({
 		page: 1,
@@ -41,6 +38,7 @@ const Matches = () => {
 	});
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [refreshKey, setRefreshKey] = useState(0);
 	const [formOpen, setFormOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
 	const [formData, setFormData] = useState({
@@ -61,11 +59,6 @@ const Matches = () => {
 			.catch(() => {});
 	}, []);
 
-	const visibleMatches = useMemo(() => {
-		const start = (pagination.page - 1) * pagination.limit;
-		return matches.slice(start, start + pagination.limit);
-	}, [matches, pagination.page, pagination.limit]);
-
 	useEffect(() => {
 		let isMounted = true;
 
@@ -74,16 +67,16 @@ const Matches = () => {
 			setError("");
 
 			try {
-				const response = await getMatches();
+				const response = await getMatches({
+					page: pagination.page,
+					limit: pagination.limit,
+				});
 				if (!isMounted) return;
 
-				const data = response.data || [];
-				setMatches(data);
+				setMatches(response.data || []);
 				setPagination((current) => ({
 					...current,
-					total: data.length,
-					pages: Math.max(1, Math.ceil(data.length / current.limit)),
-					page: 1,
+					...(response.pagination || {}),
 				}));
 			} catch (err) {
 				if (!isMounted) return;
@@ -98,7 +91,7 @@ const Matches = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, []);
+	}, [pagination.page, pagination.limit, refreshKey]);
 
 	const handleCreateMatch = async (event) => {
 		event.preventDefault();
@@ -115,15 +108,8 @@ const Matches = () => {
 			setFormData({ clientId: "", propertyId: "", interestLevel: "high" });
 			setFormOpen(false);
 
-			const response = await getMatches();
-			const data = response.data || [];
-			setMatches(data);
-			setPagination((current) => ({
-				...current,
-				total: data.length,
-				pages: Math.max(1, Math.ceil(data.length / current.limit)),
-				page: 1,
-			}));
+			setPagination((current) => ({ ...current, page: 1 }));
+			setRefreshKey((key) => key + 1);
 		} catch (err) {
 			setError(err.response?.data?.message || "Unable to create match.");
 		} finally {
@@ -270,14 +256,14 @@ const Matches = () => {
 											Loading matches...
 										</td>
 									</tr>
-								) : visibleMatches.length === 0 ? (
+								) : matches.length === 0 ? (
 									<tr>
 										<td className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400" colSpan={6}>
 											No matches found.
 										</td>
 									</tr>
 								) : (
-									visibleMatches.map((match) => (
+									matches.map((match) => (
 										<tr key={match._id} className="transition hover:bg-slate-50 dark:hover:bg-slate-700/30">
 											<td className="px-6 py-4">
 												<div className="font-medium text-slate-950 dark:text-white">

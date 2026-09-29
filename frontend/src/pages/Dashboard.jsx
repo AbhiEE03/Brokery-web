@@ -15,10 +15,20 @@ import { AlertCircle, BarChart3 } from "lucide-react";
 import {
 	getBrokerPerformance,
 	getDealsByMonth,
+	getFunnel,
 	getPipelineDistribution,
 	getPropertyByCity,
 	getSummary,
+	getTimeInStage,
 } from "../api/analyticsApi";
+
+const STAGE_LABELS = {
+	lead: "Lead",
+	contacted: "Contacted",
+	site_visit: "Site visit",
+	negotiation: "Negotiation",
+	closed: "Closed",
+};
 
 const PIE_COLORS = [
 	"#0f172a",
@@ -49,6 +59,8 @@ const Dashboard = () => {
 	const [pipelineDistribution, setPipelineDistribution] = useState([]);
 	const [brokerPerformance, setBrokerPerformance] = useState([]);
 	const [propertyByCity, setPropertyByCity] = useState([]);
+	const [funnel, setFunnel] = useState([]);
+	const [timeInStage, setTimeInStage] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
@@ -66,12 +78,16 @@ const Dashboard = () => {
 					pipelineResponse,
 					brokerResponse,
 					cityResponse,
+					funnelResponse,
+					timeResponse,
 				] = await Promise.all([
 					getSummary(),
 					getDealsByMonth(),
 					getPipelineDistribution(),
 					getBrokerPerformance(),
 					getPropertyByCity(),
+					getFunnel(),
+					getTimeInStage(),
 				]);
 
 				if (!isMounted) return;
@@ -89,6 +105,8 @@ const Dashboard = () => {
 				setPropertyByCity(
 					Array.isArray(cityResponse.data) ? cityResponse.data : [],
 				);
+				setFunnel(Array.isArray(funnelResponse.data) ? funnelResponse.data : []);
+				setTimeInStage(Array.isArray(timeResponse.data) ? timeResponse.data : []);
 			} catch (err) {
 				if (!isMounted) return;
 				setError(
@@ -106,12 +124,6 @@ const Dashboard = () => {
 		};
 	}, []);
 
-	const totalProperties =
-		summary?.totalProperties ??
-		summary?.activeListings ??
-		propertyByCity.reduce((total, item) => total + (item?.count || 0), 0);
-	const activeBrokers = summary?.activeBrokers ?? brokerPerformance.length;
-
 	const stats = [
 		{
 			label: "Total Clients",
@@ -120,7 +132,11 @@ const Dashboard = () => {
 		},
 		{
 			label: "Total Properties",
-			value: totalProperties,
+			value: summary?.totalProperties,
+			hint:
+				summary?.activeListings != null ?
+					`${formatNumber(summary.activeListings)} available`
+				:	null,
 			borderClass: "border-l-emerald-500",
 		},
 		{
@@ -129,11 +145,20 @@ const Dashboard = () => {
 			borderClass: "border-l-orange-500",
 		},
 		{
-			label: "Active Brokers",
-			value: activeBrokers,
+			label: "Pending Approvals",
+			value: summary?.pendingApprovals,
+			hint:
+				summary?.activeBrokers != null ?
+					`${formatNumber(summary.activeBrokers)} active brokers`
+				:	null,
 			borderClass: "border-l-purple-500",
 		},
 	];
+
+	const medianDaysByStage = Object.fromEntries(
+		timeInStage.map((row) => [row.stage, row.medianDays]),
+	);
+	const funnelTop = funnel[0]?.clients || 0;
 
 	const dealsChartData = dealsByMonth.map((item) => ({
 		name: formatMonthLabel(item),
@@ -191,6 +216,11 @@ const Dashboard = () => {
 								<h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
 									{loading ? "--" : formatNumber(stat.value)}
 								</h2>
+								{stat.hint && !loading ?
+									<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+										{stat.hint}
+									</p>
+								:	null}
 							</div>
 						</div>
 					))}
@@ -297,6 +327,48 @@ const Dashboard = () => {
 					</div>
 				</div>
 
+				<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
+					<div className="mb-5">
+						<p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+							Pipeline funnel
+						</p>
+						<h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
+							Clients reaching each stage
+						</h3>
+						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							From stage-change history. Median days is how long clients stayed in a stage before moving on.
+						</p>
+					</div>
+					{loading ?
+						<p className="text-sm text-slate-500 dark:text-slate-400">Loading funnel...</p>
+					:	<div className="flex flex-col gap-3">
+							{funnel.map((row) => (
+								<div key={row.stage} className="grid grid-cols-[7rem_1fr_9rem] items-center gap-4 text-sm">
+									<span className="font-medium text-slate-700 dark:text-slate-200">
+										{STAGE_LABELS[row.stage] || row.stage}
+									</span>
+									<div className="h-7 rounded-lg bg-slate-100 dark:bg-slate-700">
+										<div
+											className="flex h-7 items-center rounded-lg bg-teal-700 px-2 text-xs font-semibold text-white"
+											style={{
+												width: `${funnelTop ? Math.max(4, (row.clients / funnelTop) * 100) : 0}%`,
+											}}
+										>
+											{formatNumber(row.clients)}
+										</div>
+									</div>
+									<span className="text-xs text-slate-500 dark:text-slate-400">
+										{row.fromPrevious != null ? `${row.fromPrevious}% of previous` : "—"}
+										{medianDaysByStage[row.stage] != null ?
+											` · ${medianDaysByStage[row.stage]}d median`
+										:	""}
+									</span>
+								</div>
+							))}
+						</div>
+					}
+				</div>
+
 				<div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
 					<div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-800 dark:border-slate-700">
 						<div className="mb-5 flex items-center justify-between gap-3">
@@ -317,7 +389,8 @@ const Dashboard = () => {
 											<th className="px-4 py-3">Broker</th>
 											<th className="px-4 py-3">Assigned</th>
 											<th className="px-4 py-3">Closed</th>
-											<th className="px-4 py-3">Conversion</th>
+											<th className="px-4 py-3">Lost</th>
+											<th className="px-4 py-3" title="Closed ÷ (closed + lost)">Conversion</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
@@ -325,7 +398,7 @@ const Dashboard = () => {
 											<tr>
 												<td
 													className="px-4 py-6 text-slate-500 dark:text-slate-400"
-													colSpan={4}
+													colSpan={5}
 												>
 													Loading broker stats...
 												</td>
@@ -334,7 +407,7 @@ const Dashboard = () => {
 											<tr>
 												<td
 													className="px-4 py-6 text-slate-500 dark:text-slate-400"
-													colSpan={4}
+													colSpan={5}
 												>
 													No broker data available.
 												</td>
@@ -351,9 +424,12 @@ const Dashboard = () => {
 														{formatNumber(broker.closed)}
 													</td>
 													<td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+														{formatNumber(broker.lost)}
+													</td>
+													<td className="px-4 py-4 text-slate-600 dark:text-slate-300">
 														{broker.conversionRate != null ?
 															`${broker.conversionRate}%`
-														:	"0%"}
+														:	"—"}
 													</td>
 												</tr>
 											))
