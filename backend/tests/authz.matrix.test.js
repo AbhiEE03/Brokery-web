@@ -12,7 +12,7 @@ const {
 	authHeader,
 	FILES,
 } = require("./factories");
-const ClientChangeRequest = require("../models/ClientChangeRequest");
+const ChangeRequest = require("../models/ChangeRequest");
 
 const buildFixture = async () => {
 	const admin = await makeUser({ role: "admin" });
@@ -23,8 +23,9 @@ const buildFixture = async () => {
 	const property = await makeProperty({ addedBy: owner });
 	const secondProperty = await makeProperty({ addedBy: owner });
 	const match = await makeMatch({ client, property, createdBy: owner });
-	const changeRequest = await ClientChangeRequest.create({
-		client: client._id,
+	const changeRequest = await ChangeRequest.create({
+		entityType: "client",
+		entityId: client._id,
 		requestedBy: owner._id,
 		changes: [{ field: "pipelineStage", oldValue: "lead", newValue: "contacted" }],
 	});

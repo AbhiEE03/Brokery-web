@@ -21,8 +21,8 @@ require("../models/User");
 require("../models/Client");
 require("../models/Property");
 require("../models/Match");
-require("../models/ClientChangeRequest");
-require("../models/PropertyChangeRequest");
+require("../models/ChangeRequest");
+require("../models/Notification");
 require("../models/ActivityLog");
 
 beforeAll(async () => {
