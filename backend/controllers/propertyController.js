@@ -2,88 +2,74 @@ const Property = require("../models/Property");
 const { generateNextCode } = require("../utils/codeGenerator");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const { proposeChanges, describeProposal } = require("../services/approvalService");
-const { sendError } = require("../utils/httpError");
 const { escapeRegex } = require("../utils/regex");
+const { HttpError } = require("../utils/httpError");
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
-	try {
-		const propertyCode = await generateNextCode(Property);
+	const propertyCode = await generateNextCode(Property);
 
-		// req.body is whitelisted by createPropertyBody; status is server-controlled.
-		const property = await Property.create({
-			...req.body,
-			propertyCode,
-			status: "available",
-			addedBy: req.user._id,
-		});
+	// req.body is whitelisted by createPropertyBody; status is server-controlled.
+	const property = await Property.create({
+		...req.body,
+		propertyCode,
+		status: "available",
+		addedBy: req.user._id,
+	});
 
-		res.status(201).json({
-			success: true,
-			message: "Property created successfully",
-			data: property,
-		});
-	} catch (error) {
-		res.status(400).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(201).json({
+		success: true,
+		message: "Property created successfully",
+		data: property,
+	});
 };
 
 // Get all properties with filters and pagination
 exports.getProperties = async (req, res) => {
-	try {
-		const { city, type, status, minPrice, maxPrice, minArea, page, limit, search } =
-			req.validated.query;
+	const { city, type, status, minPrice, maxPrice, minArea, page, limit, search } =
+		req.validated.query;
 
-		// Build query object
-		const query = {};
-		if (city) query["location.city"] = city;
-		if (type) query.propertyType = type;
-		if (status) query.status = status;
+	// Build query object
+	const query = {};
+	if (city) query["location.city"] = city;
+	if (type) query.propertyType = type;
+	if (status) query.status = status;
 
-		// Price range filter
-		if (minPrice !== undefined || maxPrice !== undefined) {
-			query["pricing.askingPrice"] = {};
-			if (minPrice !== undefined) query["pricing.askingPrice"].$gte = minPrice;
-			if (maxPrice !== undefined) query["pricing.askingPrice"].$lte = maxPrice;
-		}
-
-		// Area range filter
-		if (minArea !== undefined) query["specs.area"] = { $gte: minArea };
-
-		// Free-text search on title, locality and code
-		if (search) {
-			const pattern = { $regex: escapeRegex(search), $options: "i" };
-			query.$or = [
-				{ title: pattern },
-				{ "location.locality": pattern },
-				{ propertyCode: pattern },
-			];
-		}
-
-		const [properties, total] = await Promise.all([
-			Property.find(query)
-				.sort({ createdAt: -1, _id: -1 })
-				.skip(toSkip({ page, limit }))
-				.limit(limit)
-				.populate("addedBy", "name email")
-				.lean(),
-			Property.countDocuments(query),
-		]);
-
-		res.status(200).json({
-			success: true,
-			data: properties,
-			pagination: paginationMeta({ page, limit }, total),
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	// Price range filter
+	if (minPrice !== undefined || maxPrice !== undefined) {
+		query["pricing.askingPrice"] = {};
+		if (minPrice !== undefined) query["pricing.askingPrice"].$gte = minPrice;
+		if (maxPrice !== undefined) query["pricing.askingPrice"].$lte = maxPrice;
 	}
+
+	// Area range filter
+	if (minArea !== undefined) query["specs.area"] = { $gte: minArea };
+
+	// Free-text search on title, locality and code
+	if (search) {
+		const pattern = { $regex: escapeRegex(search), $options: "i" };
+		query.$or = [
+			{ title: pattern },
+			{ "location.locality": pattern },
+			{ propertyCode: pattern },
+		];
+	}
+
+	const [properties, total] = await Promise.all([
+		Property.find(query)
+			.sort({ createdAt: -1, _id: -1 })
+			.skip(toSkip({ page, limit }))
+			.limit(limit)
+			.populate("addedBy", "name email")
+			.lean(),
+		Property.countDocuments(query),
+	]);
+
+	res.status(200).json({
+		success: true,
+		data: properties,
+		pagination: paginationMeta({ page, limit }, total),
+	});
 };
 
 // Get single property by ID (loaded and authorized by route middleware)
@@ -96,76 +82,55 @@ exports.getPropertyById = async (req, res) => {
 
 // Direct fields apply now; sensitive fields become a change request (see services/approvalService.js)
 exports.updateProperty = async (req, res) => {
-	try {
-		const result = await proposeChanges({
-			entityType: "property",
-			entityId: req.resource._id,
-			patch: req.body,
-			actor: req.user,
-		});
-		await result.entity.populate({ path: "addedBy", select: "name email" });
+	const result = await proposeChanges({
+		entityType: "property",
+		entityId: req.resource._id,
+		patch: req.body,
+		actor: req.user,
+	});
+	await result.entity.populate({ path: "addedBy", select: "name email" });
 
-		res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
-			success: true,
-			message: describeProposal(result),
-			data: {
-				updated: result.entity,
-				pending: result.pending,
-				applied: result.applied,
-				unchanged: result.unchanged,
-				superseded: result.superseded,
-			},
-		});
-	} catch (error) {
-		sendError(res, error);
-	}
+	res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
+		success: true,
+		message: describeProposal(result),
+		data: {
+			updated: result.entity,
+			pending: result.pending,
+			applied: result.applied,
+			unchanged: result.unchanged,
+			superseded: result.superseded,
+		},
+	});
 };
 
 // Delete property (admin only)
 exports.deleteProperty = async (req, res) => {
-	try {
-		await req.resource.deleteOne();
+	await req.resource.deleteOne();
 
-		res.status(200).json({
-			success: true,
-			message: "Property deleted successfully",
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		message: "Property deleted successfully",
+	});
 };
 
 exports.addPropertyImage = async (req, res) => {
-	try {
-		const property = req.resource;
+	const property = req.resource;
 
-		if (!req.file) {
-			return res.status(400).json({
-				success: false,
-				message: "Image file is required",
-			});
-		}
-
-		property.images = property.images || [];
-		property.images.push({
-			url: req.file.path,
-			uploadedAt: new Date(),
-		});
-
-		await property.save();
-
-		res.status(200).json({
-			success: true,
-			message: "Property image uploaded successfully",
-			data: property,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	if (!req.file) {
+		throw new HttpError(400, "Image file is required", { code: "FILE_REQUIRED" });
 	}
+
+	property.images = property.images || [];
+	property.images.push({
+		url: req.file.path,
+		uploadedAt: new Date(),
+	});
+
+	await property.save();
+
+	res.status(200).json({
+		success: true,
+		message: "Property image uploaded successfully",
+		data: property,
+	});
 };

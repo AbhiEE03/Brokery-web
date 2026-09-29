@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { can } = require("../policies");
+const { HttpError } = require("../utils/httpError");
 
 /**
  * Loads a document by route param into req.resource.
@@ -10,7 +11,7 @@ const loadResource = (Model, resourceType, { param = "id", populate } = {}) => {
 		const id = req.params[param];
 
 		if (!mongoose.isValidObjectId(id)) {
-			return res.status(400).json({ success: false, message: `Invalid ${param}` });
+			return next(new HttpError(400, `Invalid ${param}`, { code: "INVALID_ID" }));
 		}
 
 		try {
@@ -19,10 +20,7 @@ const loadResource = (Model, resourceType, { param = "id", populate } = {}) => {
 			const resource = await query;
 
 			if (!resource) {
-				return res.status(404).json({
-					success: false,
-					message: `${Model.modelName} not found`,
-				});
+				return next(new HttpError(404, `${Model.modelName} not found`, { code: "NOT_FOUND" }));
 			}
 
 			req.resource = resource;
@@ -38,10 +36,11 @@ const loadResource = (Model, resourceType, { param = "id", populate } = {}) => {
 const authorize = (action) => {
 	return (req, res, next) => {
 		if (!can(req.user, action, req.resourceType, req.resource)) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to perform this action",
-			});
+			return next(
+				new HttpError(403, "You are not authorized to perform this action", {
+					code: "FORBIDDEN",
+				}),
+			);
 		}
 		next();
 	};

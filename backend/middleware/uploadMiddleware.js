@@ -40,7 +40,9 @@ const createUpload = ({ folder, allowPdf }) => {
 		limits: { fileSize: MAX_FILE_SIZE, files: 1 },
 		fileFilter: (req, file, cb) => {
 			if (detectKind(file.mimetype, allowPdf)) return cb(null, true);
-			return cb(new Error(`Only ${allowedLabel} are allowed`));
+			const error = new Error(`Only ${allowedLabel} are allowed`);
+			error.name = "UploadRejectedError";
+			return cb(error);
 		},
 	});
 
@@ -49,10 +51,9 @@ const createUpload = ({ folder, allowPdf }) => {
 
 		const kind = detectKind(req.file.mimetype, allowPdf);
 		if (!kind || !SIGNATURES[kind](req.file.buffer)) {
-			return res.status(400).json({
-				success: false,
-				message: `File content does not match an allowed type (${allowedLabel})`,
-			});
+			const error = new Error(`File content does not match an allowed type (${allowedLabel})`);
+			error.name = "UploadRejectedError";
+			return next(error);
 		}
 
 		try {

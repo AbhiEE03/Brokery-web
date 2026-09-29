@@ -3,180 +3,145 @@ const Property = require("../models/Property");
 const ChangeRequest = require("../models/ChangeRequest");
 
 exports.getSummary = async (req, res) => {
-	try {
-		const [clientStats, propertyStats, pendingRequests, totalClients] =
-			await Promise.all([
-				Client.aggregate([
-					{
-						$group: {
-							_id: "$pipelineStage",
-							count: { $sum: 1 },
-						},
+	const [clientStats, propertyStats, pendingRequests, totalClients] =
+		await Promise.all([
+			Client.aggregate([
+				{
+					$group: {
+						_id: "$pipelineStage",
+						count: { $sum: 1 },
 					},
-				]),
-				Property.aggregate([
-					{
-						$group: {
-							_id: "$status",
-							count: { $sum: 1 },
-						},
+				},
+			]),
+			Property.aggregate([
+				{
+					$group: {
+						_id: "$status",
+						count: { $sum: 1 },
 					},
-				]),
-				ChangeRequest.countDocuments({ status: "pending" }),
-				Client.countDocuments(),
-			]);
+				},
+			]),
+			ChangeRequest.countDocuments({ status: "pending" }),
+			Client.countDocuments(),
+		]);
 
-		const closedDeals =
-			clientStats.find((item) => item._id === "closed")?.count || 0;
-		const activeListings =
-			propertyStats.find((item) => item._id === "available")?.count || 0;
+	const closedDeals =
+		clientStats.find((item) => item._id === "closed")?.count || 0;
+	const activeListings =
+		propertyStats.find((item) => item._id === "available")?.count || 0;
 
-		res.status(200).json({
-			success: true,
-			data: {
-				totalClients,
-				closedDeals,
-				activeListings,
-				pendingApprovals: pendingRequests,
-			},
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: {
+			totalClients,
+			closedDeals,
+			activeListings,
+			pendingApprovals: pendingRequests,
+		},
+	});
 };
 
 exports.getDealsByMonth = async (req, res) => {
-	try {
-		const twelveMonthsAgo = new Date();
-		twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+	const twelveMonthsAgo = new Date();
+	twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-		const data = await Client.aggregate([
-			{
-				$match: {
-					pipelineStage: "closed",
-					updatedAt: { $gte: twelveMonthsAgo },
-				},
+	const data = await Client.aggregate([
+		{
+			$match: {
+				pipelineStage: "closed",
+				updatedAt: { $gte: twelveMonthsAgo },
 			},
-			{
-				$group: {
-					_id: {
-						year: { $year: "$updatedAt" },
-						month: { $month: "$updatedAt" },
-					},
-					count: { $sum: 1 },
+		},
+		{
+			$group: {
+				_id: {
+					year: { $year: "$updatedAt" },
+					month: { $month: "$updatedAt" },
 				},
+				count: { $sum: 1 },
 			},
-			{ $sort: { "_id.year": 1, "_id.month": 1 } },
-		]);
+		},
+		{ $sort: { "_id.year": 1, "_id.month": 1 } },
+	]);
 
-		res.status(200).json({
-			success: true,
-			data,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data,
+	});
 };
 
 exports.getPipelineDistribution = async (req, res) => {
-	try {
-		const data = await Client.aggregate([
-			{
-				$group: {
-					_id: "$pipelineStage",
-					count: { $sum: 1 },
-				},
+	const data = await Client.aggregate([
+		{
+			$group: {
+				_id: "$pipelineStage",
+				count: { $sum: 1 },
 			},
-			{ $sort: { count: -1 } },
-		]);
+		},
+		{ $sort: { count: -1 } },
+	]);
 
-		res.status(200).json({
-			success: true,
-			data,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data,
+	});
 };
 
 exports.getBrokerPerformance = async (req, res) => {
-	try {
-		const data = await Client.aggregate([
-			{
-				$group: {
-					_id: "$assignedBroker",
-					total: { $sum: 1 },
-					closed: {
-						$sum: {
-							$cond: [{ $eq: ["$pipelineStage", "closed"] }, 1, 0],
+	const data = await Client.aggregate([
+		{
+			$group: {
+				_id: "$assignedBroker",
+				total: { $sum: 1 },
+				closed: {
+					$sum: {
+						$cond: [{ $eq: ["$pipelineStage", "closed"] }, 1, 0],
+					},
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: "users",
+				localField: "_id",
+				foreignField: "_id",
+				as: "broker",
+			},
+		},
+		{ $unwind: "$broker" },
+		{
+			$project: {
+				brokerName: "$broker.name",
+				total: 1,
+				closed: 1,
+				conversionRate: {
+					$round: [
+						{
+							$multiply: [{ $divide: ["$closed", "$total"] }, 100],
 						},
-					},
+						1,
+					],
 				},
 			},
-			{
-				$lookup: {
-					from: "users",
-					localField: "_id",
-					foreignField: "_id",
-					as: "broker",
-				},
-			},
-			{ $unwind: "$broker" },
-			{
-				$project: {
-					brokerName: "$broker.name",
-					total: 1,
-					closed: 1,
-					conversionRate: {
-						$round: [
-							{
-								$multiply: [{ $divide: ["$closed", "$total"] }, 100],
-							},
-							1,
-						],
-					},
-				},
-			},
-			{ $sort: { closed: -1 } },
-		]);
+		},
+		{ $sort: { closed: -1 } },
+	]);
 
-		res.status(200).json({
-			success: true,
-			data,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data,
+	});
 };
 
 exports.getPropertyByCity = async (req, res) => {
-	try {
-		const data = await Property.aggregate([
-			{ $match: { status: "available" } },
-			{ $group: { _id: "$location.city", count: { $sum: 1 } } },
-			{ $sort: { count: -1 } },
-		]);
+	const data = await Property.aggregate([
+		{ $match: { status: "available" } },
+		{ $group: { _id: "$location.city", count: { $sum: 1 } } },
+		{ $sort: { count: -1 } },
+	]);
 
-		res.status(200).json({
-			success: true,
-			data,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data,
+	});
 };

@@ -1,4 +1,5 @@
 const { ZodError } = require("zod");
+const { HttpError } = require("../utils/httpError");
 
 const formatIssues = (error) =>
 	error.issues.map((issue) => ({
@@ -22,11 +23,12 @@ const validate = (schemas) => {
 			next();
 		} catch (error) {
 			if (error instanceof ZodError) {
-				return res.status(400).json({
-					success: false,
-					message: "Validation failed",
-					errors: formatIssues(error),
-				});
+				return next(
+					new HttpError(400, "Validation failed", {
+						code: "VALIDATION_ERROR",
+						details: { errors: formatIssues(error) },
+					}),
+				);
 			}
 			next(error);
 		}

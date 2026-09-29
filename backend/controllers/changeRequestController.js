@@ -4,7 +4,6 @@ const {
 	withdrawChangeRequest,
 } = require("../services/approvalService");
 const { toSkip, paginationMeta } = require("../utils/pagination");
-const { sendError } = require("../utils/httpError");
 const { isAdmin } = require("../policies");
 
 const ENTITY_FIELDS = "name clientCode title propertyCode";
@@ -16,37 +15,33 @@ const populateRequest = (query) =>
 		.populate("resolvedBy", "name email");
 
 exports.getChangeRequests = async (req, res) => {
-	try {
-		const { page, limit, status, entityType, from, to } = req.validated.query;
-		const filter = {};
+	const { page, limit, status, entityType, from, to } = req.validated.query;
+	const filter = {};
 
-		if (!isAdmin(req.user)) filter.requestedBy = req.user._id;
-		if (status) filter.status = status;
-		if (entityType) filter.entityType = entityType;
-		if (from || to) {
-			filter.createdAt = {};
-			if (from) filter.createdAt.$gte = from;
-			if (to) filter.createdAt.$lte = to;
-		}
-
-		const [changeRequests, total] = await Promise.all([
-			populateRequest(
-				ChangeRequest.find(filter)
-					.sort({ createdAt: -1, _id: -1 })
-					.skip(toSkip({ page, limit }))
-					.limit(limit),
-			).lean(),
-			ChangeRequest.countDocuments(filter),
-		]);
-
-		res.status(200).json({
-			success: true,
-			data: changeRequests,
-			pagination: paginationMeta({ page, limit }, total),
-		});
-	} catch (error) {
-		sendError(res, error);
+	if (!isAdmin(req.user)) filter.requestedBy = req.user._id;
+	if (status) filter.status = status;
+	if (entityType) filter.entityType = entityType;
+	if (from || to) {
+		filter.createdAt = {};
+		if (from) filter.createdAt.$gte = from;
+		if (to) filter.createdAt.$lte = to;
 	}
+
+	const [changeRequests, total] = await Promise.all([
+		populateRequest(
+			ChangeRequest.find(filter)
+				.sort({ createdAt: -1, _id: -1 })
+				.skip(toSkip({ page, limit }))
+				.limit(limit),
+		).lean(),
+		ChangeRequest.countDocuments(filter),
+	]);
+
+	res.status(200).json({
+		success: true,
+		data: changeRequests,
+		pagination: paginationMeta({ page, limit }, total),
+	});
 };
 
 // Loaded and authorized by route middleware.
@@ -58,32 +53,28 @@ exports.getChangeRequestById = async (req, res) => {
 };
 
 const resolveWith = (getDecision) => async (req, res) => {
-	try {
-		const changeRequest = await resolveChangeRequest({
-			id: req.params.id,
-			decision: getDecision(req),
-			actor: req.user,
-			adminNote: req.body?.adminNote,
-		});
-		await changeRequest.populate("entityId", ENTITY_FIELDS);
+	const changeRequest = await resolveChangeRequest({
+		id: req.params.id,
+		decision: getDecision(req),
+		actor: req.user,
+		adminNote: req.body?.adminNote,
+	});
+	await changeRequest.populate("entityId", ENTITY_FIELDS);
 
-		if (changeRequest.status === "conflict") {
-			return res.status(409).json({
-				success: false,
-				code: "STALE_CHANGE_REQUEST",
-				message: `Not applied: ${changeRequest.conflictFields.join(", ")} changed after this request was made`,
-				data: changeRequest,
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			message: `Change request ${changeRequest.status}`,
+	if (changeRequest.status === "conflict") {
+		return res.status(409).json({
+			success: false,
+			code: "STALE_CHANGE_REQUEST",
+			message: `Not applied: ${changeRequest.conflictFields.join(", ")} changed after this request was made`,
 			data: changeRequest,
 		});
-	} catch (error) {
-		sendError(res, error);
 	}
+
+	res.status(200).json({
+		success: true,
+		message: `Change request ${changeRequest.status}`,
+		data: changeRequest,
+	});
 };
 
 exports.approveChangeRequest = resolveWith(() => "approved");
@@ -92,17 +83,13 @@ exports.rejectChangeRequest = resolveWith(() => "rejected");
 exports.resolveChangeRequest = resolveWith((req) => req.body.action);
 
 exports.withdrawChangeRequest = async (req, res) => {
-	try {
-		const changeRequest = await withdrawChangeRequest({
-			id: req.params.id,
-			actor: req.user,
-		});
-		res.status(200).json({
-			success: true,
-			message: "Change request withdrawn",
-			data: changeRequest,
-		});
-	} catch (error) {
-		sendError(res, error);
-	}
+	const changeRequest = await withdrawChangeRequest({
+		id: req.params.id,
+		actor: req.user,
+	});
+	res.status(200).json({
+		success: true,
+		message: "Change request withdrawn",
+		data: changeRequest,
+	});
 };

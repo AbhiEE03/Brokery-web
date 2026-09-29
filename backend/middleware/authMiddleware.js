@@ -1,12 +1,13 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { HttpError } = require("../utils/httpError");
 
 const verifyToken = async (req, res, next) => {
 	const authHeader = req.headers.authorization;
 	const token = authHeader?.split(" ")[1];
 
 	if (!token) {
-		return res.status(401).json({ message: "No token provided" });
+		return next(new HttpError(401, "Authentication required", { code: "UNAUTHENTICATED" }));
 	}
 
 	try {
@@ -14,19 +15,19 @@ const verifyToken = async (req, res, next) => {
 		const user = await User.findById(decoded.id).select("-password").lean();
 
 		if (!user || !user.isActive) {
-			return res.status(401).json({ message: "User not found or disabled" });
+			return next(new HttpError(401, "User not found or disabled", { code: "UNAUTHENTICATED" }));
 		}
 
 		req.user = user;
 		next();
-	} catch (error) {
-		return res.status(401).json({ message: "Invalid or expired token" });
+	} catch {
+		return next(new HttpError(401, "Invalid or expired token", { code: "INVALID_TOKEN" }));
 	}
 };
 
 const requireAdmin = (req, res, next) => {
 	if (req.user?.role !== "admin") {
-		return res.status(403).json({ message: "Admin access required" });
+		return next(new HttpError(403, "Admin access required", { code: "FORBIDDEN" }));
 	}
 
 	next();

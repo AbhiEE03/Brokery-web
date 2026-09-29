@@ -1,8 +1,8 @@
 const Client = require("../models/Client");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const { proposeChanges, describeProposal } = require("../services/approvalService");
-const { sendError } = require("../utils/httpError");
 const { escapeRegex } = require("../utils/regex");
+const { HttpError } = require("../utils/httpError");
 
 // Generate the next client code in the format CL-000001
 const generateNextClientCode = async () => {
@@ -18,78 +18,64 @@ const generateNextClientCode = async () => {
 
 // Create a new client and auto-generate a clientCode
 exports.createClient = async (req, res) => {
-	try {
-		const clientCode = await generateNextClientCode();
+	const clientCode = await generateNextClientCode();
 
-		// req.body is already whitelisted by createClientBody: pipelineStage,
-		// codes and timestamps are server-controlled.
-		const clientPayload = {
-			...req.body,
-			clientCode,
-			pipelineStage: "lead",
-		};
+	// req.body is already whitelisted by createClientBody: pipelineStage,
+	// codes and timestamps are server-controlled.
+	const clientPayload = {
+		...req.body,
+		clientCode,
+		pipelineStage: "lead",
+	};
 
-		// Brokers can only create clients assigned to themselves
-		if (req.user.role !== "admin") {
-			clientPayload.assignedBroker = req.user._id;
-		}
-
-		const client = await Client.create(clientPayload);
-
-		res.status(201).json({
-			success: true,
-			message: "Client created successfully",
-			data: client,
-		});
-	} catch (error) {
-		res.status(400).json({
-			success: false,
-			message: error.message,
-		});
+	// Brokers can only create clients assigned to themselves
+	if (req.user.role !== "admin") {
+		clientPayload.assignedBroker = req.user._id;
 	}
+
+	const client = await Client.create(clientPayload);
+
+	res.status(201).json({
+		success: true,
+		message: "Client created successfully",
+		data: client,
+	});
 };
 
 // Get clients with role-based visibility, filters, and pagination
 exports.getClients = async (req, res) => {
-	try {
-		const { stage, city, broker, search, page, limit } = req.validated.query;
+	const { stage, city, broker, search, page, limit } = req.validated.query;
 
-		const query = {};
+	const query = {};
 
-		// Brokers only see their own clients; admins can see all or filter by broker
-		if (req.user.role === "broker") {
-			query.assignedBroker = req.user._id;
-		} else if (broker) {
-			query.assignedBroker = broker;
-		}
-
-		if (stage) query.pipelineStage = stage;
-		if (city) query["requirements.city"] = city;
-		if (search) {
-			query.name = { $regex: escapeRegex(search), $options: "i" };
-		}
-
-		const [clients, total] = await Promise.all([
-			Client.find(query)
-				.sort({ createdAt: -1 })
-				.skip(toSkip({ page, limit }))
-				.limit(limit)
-				.populate("assignedBroker", "name email")
-				.lean(),
-			Client.countDocuments(query),
-		]);
-
-		res.status(200).json({
-			success: true,
-			data: clients,
-			pagination: paginationMeta({ page, limit }, total),
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	// Brokers only see their own clients; admins can see all or filter by broker
+	if (req.user.role === "broker") {
+		query.assignedBroker = req.user._id;
+	} else if (broker) {
+		query.assignedBroker = broker;
 	}
+
+	if (stage) query.pipelineStage = stage;
+	if (city) query["requirements.city"] = city;
+	if (search) {
+		query.name = { $regex: escapeRegex(search), $options: "i" };
+	}
+
+	const [clients, total] = await Promise.all([
+		Client.find(query)
+			.sort({ createdAt: -1 })
+			.skip(toSkip({ page, limit }))
+			.limit(limit)
+			.populate("assignedBroker", "name email")
+			.lean(),
+		Client.countDocuments(query),
+	]);
+
+	res.status(200).json({
+		success: true,
+		data: clients,
+		pagination: paginationMeta({ page, limit }, total),
+	});
 };
 
 // Get a single client by ID (loaded and authorized by route middleware)
@@ -102,80 +88,59 @@ exports.getClientById = async (req, res) => {
 
 // Direct fields apply now; sensitive fields become a change request (see services/approvalService.js)
 exports.updateClient = async (req, res) => {
-	try {
-		const result = await proposeChanges({
-			entityType: "client",
-			entityId: req.resource._id,
-			patch: req.body,
-			actor: req.user,
-		});
-		await result.entity.populate({ path: "assignedBroker", select: "name email" });
+	const result = await proposeChanges({
+		entityType: "client",
+		entityId: req.resource._id,
+		patch: req.body,
+		actor: req.user,
+	});
+	await result.entity.populate({ path: "assignedBroker", select: "name email" });
 
-		res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
-			success: true,
-			message: describeProposal(result),
-			data: {
-				updated: result.entity,
-				pending: result.pending,
-				applied: result.applied,
-				unchanged: result.unchanged,
-				superseded: result.superseded,
-			},
-		});
-	} catch (error) {
-		sendError(res, error);
-	}
+	res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
+		success: true,
+		message: describeProposal(result),
+		data: {
+			updated: result.entity,
+			pending: result.pending,
+			applied: result.applied,
+			unchanged: result.unchanged,
+			superseded: result.superseded,
+		},
+	});
 };
 
 // Delete a client by ID (admin only)
 exports.deleteClient = async (req, res) => {
-	try {
-		await req.resource.deleteOne();
+	await req.resource.deleteOne();
 
-		res.status(200).json({
-			success: true,
-			message: "Client deleted successfully",
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		message: "Client deleted successfully",
+	});
 };
 
 const DOCUMENT_TYPES = ["id_proof", "income_proof", "agreement", "other"];
 
 exports.addClientDocument = async (req, res) => {
-	try {
-		const client = req.resource;
+	const client = req.resource;
 
-		if (!req.file) {
-			return res.status(400).json({
-				success: false,
-				message: "Document file is required",
-			});
-		}
-
-		client.documents = client.documents || [];
-		client.documents.push({
-			name: req.file.originalname,
-			url: req.file.path,
-			type: DOCUMENT_TYPES.includes(req.body?.type) ? req.body.type : "other",
-			uploadedAt: new Date(),
-		});
-
-		await client.save();
-
-		res.status(200).json({
-			success: true,
-			message: "Client document uploaded successfully",
-			data: client,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	if (!req.file) {
+		throw new HttpError(400, "Document file is required", { code: "FILE_REQUIRED" });
 	}
+
+	client.documents = client.documents || [];
+	client.documents.push({
+		name: req.file.originalname,
+		url: req.file.path,
+		type: DOCUMENT_TYPES.includes(req.body?.type) ? req.body.type : "other",
+		uploadedAt: new Date(),
+	});
+
+	await client.save();
+
+	res.status(200).json({
+		success: true,
+		message: "Client document uploaded successfully",
+		data: client,
+	});
 };
