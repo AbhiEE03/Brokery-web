@@ -33,6 +33,11 @@ const sendChangeRequestResolved = async ({
 		<p>-- Brokery CRM</p>
 	`;
 
+	if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+		console.info(`[email disabled] would send "${subject}" to ${toEmail}`);
+		return;
+	}
+
 	await transporter.sendMail({
 		from: `"Brokery CRM" <${process.env.EMAIL_USER}>`,
 		to: toEmail,

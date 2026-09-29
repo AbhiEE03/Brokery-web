@@ -1,5 +1,5 @@
 const multer = require("multer");
-const cloudinary = require("../config/cloudinary");
+const { storeFile } = require("../utils/storage");
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -27,19 +27,10 @@ const detectKind = (mimeType, allowPdf) => {
 	return null;
 };
 
-const uploadBufferToCloudinary = (buffer, folder) =>
-	new Promise((resolve, reject) => {
-		const stream = cloudinary.uploader.upload_stream(
-			{ folder, resource_type: "auto" },
-			(error, result) => (error ? reject(error) : resolve(result)),
-		);
-		stream.end(buffer);
-	});
-
 /**
  * Returns [multerSingle, storeInCloudinary] middleware for one "file" field.
  * Multer keeps the file in memory; the second middleware verifies the file
- * signature and uploads it, exposing the URL as req.file.path.
+ * signature and stores it, exposing the URL as req.file.path.
  */
 const createUpload = ({ folder, allowPdf }) => {
 	const allowedLabel = allowPdf ? "PDF and image files" : "image files";
@@ -65,9 +56,12 @@ const createUpload = ({ folder, allowPdf }) => {
 		}
 
 		try {
-			const result = await uploadBufferToCloudinary(req.file.buffer, folder);
-			req.file.path = result.secure_url;
-			req.file.publicId = result.public_id;
+			const result = await storeFile(req.file.buffer, {
+				folder,
+				extension: kind,
+			});
+			req.file.path = result.url;
+			req.file.publicId = result.publicId;
 			req.file.buffer = undefined;
 			next();
 		} catch (error) {
@@ -93,6 +87,5 @@ const uploadImage = createUpload({
 module.exports = {
 	uploadDocument,
 	uploadImage,
-	uploadBufferToCloudinary,
 	SIGNATURES,
 };
