@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-secret";
 process.env.JWT_EXPIRES_IN = "1h";
+process.env.RATE_LIMIT_PER_MINUTE = "100000";
 
 jest.mock("../utils/storage", () => ({
 	storeFile: jest.fn(async (buffer, { folder, extension }) => ({
