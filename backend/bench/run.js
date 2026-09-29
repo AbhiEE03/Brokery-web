@@ -63,10 +63,15 @@ const main = async () => {
 	const deep = await db.collection("activitylogs").find().sort({ createdAt: -1, _id: -1 }).skip(39999).limit(1).next();
 	const deepCursor = `${deep.createdAt.toISOString()}_${deep._id}`;
 
+	// A real word from the dataset for the search scenario.
+	const sample = await db.collection("properties").findOne({}, { projection: { title: 1 } });
+	const searchWord = sample.title.split(" ").filter((w) => /^[A-Za-z]{4,}$/.test(w)).pop() || "Road";
+
 	const scenarios = [
 		["Broker's client list (own clients, newest first)", "/api/clients?limit=20", brokerToken],
 		["Clients by stage (admin)", "/api/clients?stage=negotiation&limit=20", adminToken],
 		["Available properties in a city", "/api/properties?city=pune&status=available&limit=20", brokerToken],
+		[`Property search "${searchWord}" (text index; substring scan without it)`, `/api/properties?search=${encodeURIComponent(searchWord)}&limit=20`, brokerToken],
 		["Properties by price range", "/api/properties?minPrice=5000000&maxPrice=6000000&limit=20", brokerToken],
 		["Pending approvals queue", "/api/change-requests?status=pending&limit=20", adminToken],
 		["Broker's matches", "/api/matches?limit=20", brokerToken],
@@ -83,8 +88,8 @@ const main = async () => {
 		for (const [name, url, auth] of scenarios) {
 			const r = await run(base + url, auth);
 			if (r.non2xx) throw new Error(`${name}: ${r.non2xx} non-2xx responses`);
-			results.push({ name, p50: r.latency.p50, p99: r.latency.p99, rps: Math.round(r.requests.average) });
-			console.log(`[${label}] ${name}: p50 ${r.latency.p50}ms p99 ${r.latency.p99}ms ${Math.round(r.requests.average)} req/s`);
+			results.push({ name, p50: r.latency.p50, p975: r.latency.p97_5, p99: r.latency.p99, rps: Math.round(r.requests.average) });
+			console.log(`[${label}] ${name}: p50 ${r.latency.p50}ms p97.5 ${r.latency.p97_5}ms p99 ${r.latency.p99}ms ${Math.round(r.requests.average)} req/s`);
 		}
 		return results;
 	};
@@ -106,21 +111,21 @@ const main = async () => {
 	const speedup = (a, b) => (b.p50 > 0 ? `${(a.p50 / b.p50).toFixed(1)}×` : "—");
 	const rows = withoutIndexes.map((before, i) => {
 		const after = withIndexes[i];
-		return `| ${before.name} | ${before.p50} | ${before.p99} | ${after.p50} | ${after.p99} | ${speedup(before, after)} | ${before.rps} → ${after.rps} |`;
+		return `| ${before.name} | ${before.p50} | ${before.p975} | ${before.p99} | ${after.p50} | ${after.p975} | ${after.p99} | ${speedup(before, after)} | ${before.rps} → ${after.rps} |`;
 	});
 
 	const report = `# Benchmark ${date}
 
 Same dataset and requests measured twice: with only \`_id\` indexes, then with the schema indexes.
-Latencies in milliseconds (autocannon, ${CONNECTIONS} connections, ${DURATION}s per scenario, single run).
+Latencies in milliseconds (autocannon, ${CONNECTIONS} connections, ${DURATION}s per scenario, single run). autocannon reports p97.5 rather than p95.
 
 **Dataset:** ${Object.entries(counts).map(([k, v]) => `${v.toLocaleString("en-US")} ${k}`).join(", ")}.
 Broker scenarios use one of ${brokers.length} brokers (~${Math.round(counts.clients / brokers.length).toLocaleString("en-US")} clients each).
 
 **Machine:** ${os.cpus()[0].model.trim()} (${os.cpus().length} threads), ${Math.round(os.totalmem() / 1024 ** 3)} GB RAM, ${os.type()} ${os.release()}, Node ${process.version}, MongoDB ${mongoVersion} (in-memory replica set on the same machine).
 
-| Scenario | p50 before | p99 before | p50 after | p99 after | p50 speed-up | req/s before → after |
-|---|---:|---:|---:|---:|---:|---:|
+| Scenario | p50 before | p97.5 before | p99 before | p50 after | p97.5 after | p99 after | p50 speed-up | req/s before → after |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
 ${rows.join("\n")}
 
 Caveats: one run on a developer laptop with the database on the same machine and no network hop. Treat the numbers as relative (before vs after), not as production capacity.

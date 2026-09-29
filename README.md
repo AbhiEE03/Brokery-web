@@ -42,11 +42,12 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 
 | Endpoint | No indexes | Indexed |
 |---|---:|---:|
-| Broker's client list | 198 ms | 30 ms |
-| Clients by stage (admin) | 237 ms | 44 ms |
-| Closures by month | 252 ms | 24 ms |
-| Activity feed, 40k rows deep: offset / keyset | 403 / 206 ms | 90 / 51 ms |
-| Dashboard summary (full-collection aggregation) | 165 ms | 160 ms |
+| Broker's client list | 202 ms | 30 ms |
+| Clients by stage (admin) | 239 ms | 45 ms |
+| Property search (text index vs substring scan) | 171 ms | 27 ms |
+| Closures by month | 245 ms | 26 ms |
+| Activity feed, 40k rows deep: offset / keyset | 408 / 203 ms | 89 / 52 ms |
+| Dashboard summary (full-collection aggregation) | 161 ms | 167 ms |
 
 Single laptop run with the database on the same machine; read it as before/after, not as production capacity. Full-collection aggregations don't benefit from indexes. Pre-aggregating them is the next step (see `docs/ENGINEERING_LOG.md`).
 

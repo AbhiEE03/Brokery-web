@@ -70,9 +70,12 @@ Short entries for notable bugs: how they were found, why they happened, how they
 - Deletes are soft deletes with a transactional cascade.
 
 **Measured** with `npm run bench` (100k clients, 30k properties, 100k activity logs; [full results](../backend/bench/results/2026-09-29.md)). p50 before → after indexes:
-- Broker's client list: 198 ms → 30 ms (6.6×)
-- Closures by month: 252 ms → 24 ms (10.5×)
-- Activity feed 40k rows deep: offset 90 ms vs keyset 51 ms, with indexes
+- Broker's client list: 202 ms → 30 ms (6.7×)
+- Closures by month: 245 ms → 26 ms (9.4×)
+- Property search: 171 ms (substring scan) → 27 ms (text index)
+- Activity feed 40k rows deep: offset 89 ms vs keyset 52 ms, with indexes
+
+Property search uses the text index for whole words and falls back to a substring scan only when the text search finds nothing, e.g. for partial words or property codes.
 
 **Not solved by indexes (next steps):**
 - The dashboard summary and broker-performance aggregations (~160–180 ms p50) scan whole collections. That's inherent to `$group` over everything, and the fix is pre-aggregation (e.g. per-broker counters updated in the approval transaction) or a short cache.
