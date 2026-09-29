@@ -23,7 +23,7 @@ const mongoose = require("mongoose");
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
 const { generateSynthetic } = require("../scripts/generateSynthetic");
 
-const MODELS = ["User", "Client", "Property", "Match", "ChangeRequest", "StageTransition", "ActivityLog", "Notification", "Counter"];
+const MODELS = ["User", "Client", "Property", "Match", "ChangeRequest", "StageTransition", "AuditLog", "Notification", "Counter"];
 MODELS.forEach((name) => require(`../models/${name}`));
 
 const DURATION = Number(process.env.BENCH_DURATION || 6);
@@ -60,8 +60,8 @@ const main = async () => {
 	const brokerToken = token(brokers[0]);
 
 	// Cursor pointing ~40k rows deep, to compare offset vs keyset at the same depth.
-	const deep = await db.collection("activitylogs").find().sort({ createdAt: -1, _id: -1 }).skip(39999).limit(1).next();
-	const deepCursor = `${deep.createdAt.toISOString()}_${deep._id}`;
+	const deep = await db.collection("auditlogs").find().sort({ seq: -1 }).skip(39999).limit(1).next();
+	const deepCursor = deep.seq;
 
 	// A real word from the dataset for the search scenario.
 	const sample = await db.collection("properties").findOne({}, { projection: { title: 1 } });

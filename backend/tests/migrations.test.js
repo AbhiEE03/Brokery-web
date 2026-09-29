@@ -107,3 +107,34 @@ describe("migration: code counters", () => {
 		expect(await nextPropertyCode()).toBe("100AB");
 	});
 });
+
+describe("migration: activity log into the audit chain", () => {
+	const migration = require("../migrations/20260930090000-activity-to-audit-log");
+	const AuditLog = require("../models/AuditLog");
+	const audit = require("../services/auditService");
+
+	test("copies old entries oldest-first into a valid chain, idempotently, and new entries continue it", async () => {
+		const db = mongoose.connection.db;
+		const user = new mongoose.Types.ObjectId();
+		await db.collection("activitylogs").insertMany([
+			{ performedBy: user, action: "Created client Asha", entity: "client", entityId: new mongoose.Types.ObjectId(), createdAt: new Date("2026-08-02") },
+			{ performedBy: user, action: "Updated property 00AB", entity: "property", createdAt: new Date("2026-08-01"), metadata: { method: "PATCH" } },
+			{ performedBy: user, action: "Something odd", createdAt: new Date("2026-08-03") },
+		]);
+
+		await migration.up(db);
+		await migration.up(db);
+
+		const entries = await AuditLog.find().sort({ seq: 1 }).lean();
+		expect(entries.map((e) => [e.seq, e.summary, e.legacy])).toEqual([
+			[1, "Updated property 00AB", true],
+			[2, "Created client Asha", true],
+			[3, "Something odd", true],
+		]);
+		expect(entries[2].entityType).toBe("user");
+		expect(await audit.verifyChain()).toEqual({ ok: true, checked: 3 });
+
+		await audit.record({ actor: user, action: "client.update", entityType: "client", summary: "after migration" });
+		expect(await audit.verifyChain()).toEqual({ ok: true, checked: 4 });
+	});
+});
