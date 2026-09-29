@@ -14,7 +14,7 @@ const Property = require("../models/Property");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
-const { createMatchBody, updateMatchBody } = require("../validation/schemas");
+const { createMatchBody, updateMatchBody, listMatchesQuery } = require("../validation/schemas");
 
 // The match policy needs the client's owner, so populate it.
 const loadMatch = loadResource(Match, "match", {
@@ -23,7 +23,7 @@ const loadMatch = loadResource(Match, "match", {
 
 router.use(verifyToken);
 
-router.get("/", getMatches);
+router.get("/", validate({ query: listMatchesQuery }), getMatches);
 router.post("/", validate({ body: createMatchBody }), createMatch);
 router.get(
 	"/client/:clientId",

@@ -2,6 +2,7 @@ const Match = require("../models/Match");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
 const { can, isAdmin } = require("../policies");
+const { toSkip, paginationMeta } = require("../utils/pagination");
 
 const CLIENT_FIELDS = "name clientCode phone email assignedBroker";
 const PROPERTY_FIELDS = "title propertyCode location pricing status";
@@ -14,16 +15,26 @@ const visibilityFilter = async (user) => {
 };
 
 exports.getMatches = async (req, res) => {
-	const matches = await Match.find(await visibilityFilter(req.user))
-		.populate("client", CLIENT_FIELDS)
-		.populate("property", PROPERTY_FIELDS)
-		.populate("createdBy", "name email role")
-		.sort({ createdAt: -1 })
-		.lean();
+	const { page, limit, interestLevel } = req.validated.query;
+	const filter = { ...(await visibilityFilter(req.user)) };
+	if (interestLevel) filter.interestLevel = interestLevel;
+
+	const [matches, total] = await Promise.all([
+		Match.find(filter)
+			.populate("client", CLIENT_FIELDS)
+			.populate("property", PROPERTY_FIELDS)
+			.populate("createdBy", "name email role")
+			.sort({ createdAt: -1, _id: -1 })
+			.skip(toSkip({ page, limit }))
+			.limit(limit)
+			.lean(),
+		Match.countDocuments(filter),
+	]);
 
 	res.status(200).json({
 		success: true,
 		data: matches,
+		pagination: paginationMeta({ page, limit }, total),
 	});
 };
 
