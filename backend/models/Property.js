@@ -96,7 +96,6 @@ const propertySchema = new mongoose.Schema({
 			},
 		},
 	],
-	documents: [String],
 	addedBy: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",

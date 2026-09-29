@@ -32,12 +32,4 @@ const requireAdmin = (req, res, next) => {
 	next();
 };
 
-const requireBroker = (req, res, next) => {
-	if (!["admin", "broker"].includes(req.user?.role)) {
-		return res.status(403).json({ message: "Broker access required" });
-	}
-
-	next();
-};
-
-module.exports = { verifyToken, requireAdmin, requireBroker };
+module.exports = { verifyToken, requireAdmin };
