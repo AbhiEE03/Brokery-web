@@ -1,6 +1,7 @@
 // Low-risk client profile details that a broker can update without admin approval.
 // These fields are mostly informational or do not materially change deal status.
 const DIRECT_EDIT_FIELDS = [
+	"name", // Display name correction; no business impact.
 	"notes", // Informational notes; low business risk.
 	"email", // Contact detail update; usually safe and non-sensitive.
 	"phone", // Contact detail update; usually safe and non-sensitive.

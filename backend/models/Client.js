@@ -81,6 +81,12 @@ const clientSchema = new mongoose.Schema({
 		type: String,
 		trim: true,
 	},
+	// Incremented by the approval engine on every change; concurrent writers to
+	// the same record conflict on it, which serializes their transactions.
+	revision: {
+		type: Number,
+		default: 0,
+	},
 	createdAt: {
 		type: Date,
 		default: Date.now,
@@ -93,6 +99,18 @@ const clientSchema = new mongoose.Schema({
 
 clientSchema.pre("save", function () {
 	this.updatedAt = Date.now();
+});
+
+// Range checks run on the merged document, so a partial edit can't produce min > max.
+clientSchema.pre("validate", function () {
+	const r = this.requirements || {};
+	const isSet = (v) => typeof v === "number";
+	if (isSet(r.minBudget) && isSet(r.maxBudget) && r.minBudget > r.maxBudget) {
+		this.invalidate("requirements.minBudget", "minBudget must not exceed maxBudget");
+	}
+	if (isSet(r.minArea) && isSet(r.maxArea) && r.minArea > r.maxArea) {
+		this.invalidate("requirements.minArea", "minArea must not exceed maxArea");
+	}
 });
 
 module.exports = mongoose.model("Client", clientSchema);

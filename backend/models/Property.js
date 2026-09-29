@@ -100,6 +100,12 @@ const propertySchema = new mongoose.Schema({
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
 	},
+	// Incremented by the approval engine on every change; concurrent writers to
+	// the same record conflict on it, which serializes their transactions.
+	revision: {
+		type: Number,
+		default: 0,
+	},
 	createdAt: {
 		type: Date,
 		default: Date.now,
