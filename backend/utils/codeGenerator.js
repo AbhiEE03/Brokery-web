@@ -1,4 +1,7 @@
+const Counter = require("../models/Counter");
+
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const LETTER_SPACE = 26 * 26;
 
 /**
  * Encode 0-based number to 2-letter suffix (AA=0, AB=1, ..., ZZ=675)
@@ -17,25 +20,53 @@ const decodeLetters = (s) => {
 };
 
 /**
- * Generate next sequential property code (format: XXYY where XX=numeric prefix, YY=letter suffix)
- * Sequence: 00AA → 00AB → ... → 00ZZ → 01AA → 01AB → ...
+ * Property codes: 00AA → 00AB → … → 00ZZ → 01AA … → 99ZZ → 100AA.
+ * Derived from a sequence number, so the numeric prefix can grow past two
+ * digits without the string-sort problems of "find the max code and add one".
  */
-const generateNextCode = async (Property) => {
-	const last = await Property.findOne({}, { propertyCode: 1 })
-		.sort({ propertyCode: -1 })
-		.lean();
-
-	if (!last || !last.propertyCode) return "00AA";
-
-	const numPrefix = parseInt(last.propertyCode.slice(0, 2));
-	const letterSuffix = last.propertyCode.slice(2);
-	const letterIndex = decodeLetters(letterSuffix);
-
-	if (letterIndex < 675) {
-		return String(numPrefix).padStart(2, "0") + encodeLetters(letterIndex + 1);
-	} else {
-		return String(numPrefix + 1).padStart(2, "0") + "AA";
-	}
+const encodePropertyCode = (seq) => {
+	const n = seq - 1;
+	const prefix = Math.floor(n / LETTER_SPACE);
+	return String(prefix).padStart(2, "0") + encodeLetters(n % LETTER_SPACE);
 };
 
-module.exports = { generateNextCode, encodeLetters, decodeLetters };
+const decodePropertyCode = (code) => {
+	const match = /^(\d{2,})([A-Z]{2})$/.exec(code || "");
+	if (!match) return 0;
+	return Number(match[1]) * LETTER_SPACE + decodeLetters(match[2]) + 1;
+};
+
+const encodeClientCode = (seq) => `CL-${String(seq).padStart(6, "0")}`;
+
+const decodeClientCode = (code) => {
+	const match = /^CL-(\d+)$/.exec(code || "");
+	return match ? Number(match[1]) : 0;
+};
+
+/** Atomically reserves the next value of a named sequence. */
+const nextSequence = async (name, { session } = {}) => {
+	const counter = await Counter.findOneAndUpdate(
+		{ _id: name },
+		{ $inc: { seq: 1 } },
+		{ upsert: true, new: true, session },
+	);
+	return counter.seq;
+};
+
+const nextPropertyCode = async (options) =>
+	encodePropertyCode(await nextSequence("property", options));
+
+const nextClientCode = async (options) =>
+	encodeClientCode(await nextSequence("client", options));
+
+module.exports = {
+	encodeLetters,
+	decodeLetters,
+	encodePropertyCode,
+	decodePropertyCode,
+	encodeClientCode,
+	decodeClientCode,
+	nextSequence,
+	nextPropertyCode,
+	nextClientCode,
+};

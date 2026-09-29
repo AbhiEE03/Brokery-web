@@ -1,21 +1,14 @@
 const Property = require("../models/Property");
-const { generateNextCode } = require("../utils/codeGenerator");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const { proposeChanges, describeProposal } = require("../services/approvalService");
 const { escapeRegex } = require("../utils/regex");
 const { HttpError } = require("../utils/httpError");
+const lifecycle = require("../services/lifecycleService");
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
-	const propertyCode = await generateNextCode(Property);
-
-	// req.body is whitelisted by createPropertyBody; status is server-controlled.
-	const property = await Property.create({
-		...req.body,
-		propertyCode,
-		status: "available",
-		addedBy: req.user._id,
-	});
+	// req.body is whitelisted by createPropertyBody; status and code are server-controlled.
+	const property = await lifecycle.createProperty({ data: req.body, actor: req.user });
 
 	res.status(201).json({
 		success: true,
@@ -31,7 +24,7 @@ exports.getProperties = async (req, res) => {
 
 	// Build query object
 	const query = {};
-	if (city) query["location.city"] = city;
+	if (city) query["location.cityKey"] = city.trim().toLowerCase();
 	if (type) query.propertyType = type;
 	if (status) query.status = status;
 
@@ -105,7 +98,11 @@ exports.updateProperty = async (req, res) => {
 
 // Delete property (admin only)
 exports.deleteProperty = async (req, res) => {
-	await req.resource.deleteOne();
+	await lifecycle.softDeleteEntity({
+		entityType: "property",
+		entity: req.resource,
+		actor: req.user,
+	});
 
 	res.status(200).json({
 		success: true,

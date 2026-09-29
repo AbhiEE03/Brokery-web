@@ -3,37 +3,20 @@ const { toSkip, paginationMeta } = require("../utils/pagination");
 const { proposeChanges, describeProposal } = require("../services/approvalService");
 const { escapeRegex } = require("../utils/regex");
 const { HttpError } = require("../utils/httpError");
-
-// Generate the next client code in the format CL-000001
-const generateNextClientCode = async () => {
-	const lastClient = await Client.findOne({}, { clientCode: 1 })
-		.sort({ clientCode: -1 })
-		.lean();
-
-	if (!lastClient || !lastClient.clientCode) return "CL-000001";
-
-	const currentNumber = parseInt(lastClient.clientCode.split("-")[1], 10);
-	return `CL-${String(currentNumber + 1).padStart(6, "0")}`;
-};
+const lifecycle = require("../services/lifecycleService");
 
 // Create a new client and auto-generate a clientCode
 exports.createClient = async (req, res) => {
-	const clientCode = await generateNextClientCode();
-
 	// req.body is already whitelisted by createClientBody: pipelineStage,
 	// codes and timestamps are server-controlled.
-	const clientPayload = {
-		...req.body,
-		clientCode,
-		pipelineStage: "lead",
-	};
+	const data = { ...req.body };
 
 	// Brokers can only create clients assigned to themselves
 	if (req.user.role !== "admin") {
-		clientPayload.assignedBroker = req.user._id;
+		data.assignedBroker = req.user._id;
 	}
 
-	const client = await Client.create(clientPayload);
+	const client = await lifecycle.createClient({ data, actor: req.user });
 
 	res.status(201).json({
 		success: true,
@@ -56,7 +39,7 @@ exports.getClients = async (req, res) => {
 	}
 
 	if (stage) query.pipelineStage = stage;
-	if (city) query["requirements.city"] = city;
+	if (city) query["requirements.cityKey"] = city.trim().toLowerCase();
 	if (search) {
 		query.name = { $regex: escapeRegex(search), $options: "i" };
 	}
@@ -111,7 +94,11 @@ exports.updateClient = async (req, res) => {
 
 // Delete a client by ID (admin only)
 exports.deleteClient = async (req, res) => {
-	await req.resource.deleteOne();
+	await lifecycle.softDeleteEntity({
+		entityType: "client",
+		entity: req.resource,
+		actor: req.user,
+	});
 
 	res.status(200).json({
 		success: true,
