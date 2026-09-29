@@ -26,21 +26,37 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 - **Roles & object-level authorization** — Admin and Broker. A single policy module decides who can read/update/upload/delete each resource: brokers only access their own clients and the matches involving them; property inventory is shared for reading but only the broker who listed a property (or an admin) can change it. Enforced by route middleware and covered by a table-driven authorization test.
 - **Validated input** — every body and query is parsed with Zod; server-controlled fields (stage, status, codes) can't be set by clients.
 - **Approval engine** — low-risk fields (phone, notes, locality…) update immediately; sensitive fields (pipeline stage, budget, city, asking price…) become a change request for admin review, for both clients and properties. Unchanged values are ignored, approval is transactional and exactly-once under concurrent clicks, and a request whose field changed in the meantime is flagged as a conflict instead of overwriting newer data. See [ADR 001](docs/adr/001-approval-engine.md).
-- **Analytics dashboard** — MongoDB aggregation endpoints for pipeline distribution, broker conversion, monthly closures and available inventory by city, rendered with Recharts.
+- **Event-based analytics** — every stage change is recorded as a `StageTransition` event in the same transaction, so the dashboard shows closures by the month they actually happened, a pipeline funnel, median days in each stage, and broker conversion as closed ÷ (closed + lost). See [ADR 002](docs/adr/002-soft-delete-and-stage-history.md).
+- **Data lifecycle** — soft deletes with a transactional cascade (links removed, pending approvals closed), atomic sequence counters for client/property codes, versioned migrations in `backend/migrations`.
 - **Client–property links** — brokers record which client is interested in which property and how strongly (manual links; see Roadmap for automated matching).
-- **Readable codes** — clients get `CL-000001`-style codes; properties get `00AA → 00AB → … → 01AA` codes.
-- **Activity log** — create/update actions on clients and properties and approval decisions are recorded with the acting user.
+- **Readable codes** — clients get `CL-000001`-style codes; properties get `00AA → 00AB → … → 01AA` codes, reserved from atomic counters so concurrent creates never collide.
+- **Activity log** — create/update actions on clients and properties and approval decisions are recorded with the acting user; filterable by entity, broker and date, with keyset (cursor) pagination.
 - **Uploads** — client documents (PDF/images) and property images are stored on Cloudinary; file types are verified by content signature, 5 MB limit.
 - **Reliable notifications** — approval outcomes are written to a transactional outbox and emailed by a background worker with retries and exponential backoff, so SMTP problems never block or roll back an approval.
 - **Operational basics** — structured JSON logs with request IDs, consistent JSON error responses, Helmet security headers, per-IP API rate limits and per-account login throttling, `/healthz` and `/readyz` probes, env validation at boot, graceful shutdown.
+
+## Performance
+
+`npm run bench` (in `backend/`) generates a synthetic dataset (100k clients, 30k properties, 50k matches, 100k activity entries) in an in-memory replica set, then measures each endpoint with and without the schema indexes. Latest run, p50 latency ([full table and machine details](backend/bench/results/2026-09-29.md)):
+
+| Endpoint | No indexes | Indexed |
+|---|---:|---:|
+| Broker's client list | 198 ms | 30 ms |
+| Clients by stage (admin) | 237 ms | 44 ms |
+| Closures by month | 252 ms | 24 ms |
+| Activity feed, 40k rows deep: offset / keyset | 403 / 206 ms | 90 / 51 ms |
+| Dashboard summary (full-collection aggregation) | 165 ms | 160 ms |
+
+Single laptop run with the database on the same machine; read it as before/after, not as production capacity. Full-collection aggregations don't benefit from indexes. Pre-aggregating them is the next step (see `docs/ENGINEERING_LOG.md`).
 
 ## Roadmap
 
 Work in progress, in order:
 
-1. Stage-history based analytics, indexes, pagination and a published benchmark
-2. Tamper-evident audit log and duplicate-client ownership protection
+1. Tamper-evident audit log and duplicate-client ownership protection
+2. Frontend refactor (shared data-fetching, role-aware routing, conflict view)
 3. Explainable client↔property matching and buyer shortlist links
+4. Event-driven re-match alerts when a property's price or status changes
 
 ---
 

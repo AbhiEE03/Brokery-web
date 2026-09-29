@@ -54,3 +54,26 @@ Short entries for notable bugs: how they were found, why they happened, how they
 - invalid approvals roll back
 
 **Caught in the browser (Edge, sandbox):** after proposing a budget change, pressing *Save* again resent the still-displayed value and superseded the first request with an identical one. Fixed server-side: re-submitting a value that's already pending now reuses the existing request (test: "re-submitting an already pending value reuses the same request").
+
+---
+
+## 2026-09-29 — Analytics built on stage events; indexes and pagination measured
+
+**Problem.** "Closed deals per month" grouped closed clients by `updatedAt`, so any later edit moved the closure month. The demo seed had been hand-tuning `updatedAt` to make the chart look plausible. Funnel and time-in-stage were impossible to compute. Several lists had no index behind their filter or sort.
+
+**Fix.** See [ADR 002](adr/002-soft-delete-and-stage-history.md):
+- `StageTransition` events are written transactionally with every stage change.
+- Analytics read events: monthly closures, a cumulative funnel, median time in stage, and conversion = closed ÷ (closed + lost).
+- Compound indexes match the actual list queries.
+- The activity feed supports keyset (cursor) pagination.
+- Codes come from atomic counters.
+- Deletes are soft deletes with a transactional cascade.
+
+**Measured** with `npm run bench` (100k clients, 30k properties, 100k activity logs; [full results](../backend/bench/results/2026-09-29.md)). p50 before → after indexes:
+- Broker's client list: 198 ms → 30 ms (6.6×)
+- Closures by month: 252 ms → 24 ms (10.5×)
+- Activity feed 40k rows deep: offset 90 ms vs keyset 51 ms, with indexes
+
+**Not solved by indexes (next steps):**
+- The dashboard summary and broker-performance aggregations (~160–180 ms p50) scan whole collections. That's inherent to `$group` over everything, and the fix is pre-aggregation (e.g. per-broker counters updated in the approval transaction) or a short cache.
+- "Broker's matches" (111 ms) filters with a `$in` over the broker's ~5k client ids. Denormalising the client's broker onto the match would turn it into a single index lookup.
