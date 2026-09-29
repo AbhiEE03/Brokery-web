@@ -1,194 +1,143 @@
 const Match = require("../models/Match");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
+const { can, isAdmin } = require("../policies");
+const { toSkip, paginationMeta } = require("../utils/pagination");
+
+const CLIENT_FIELDS = "name clientCode phone email assignedBroker";
+const PROPERTY_FIELDS = "title propertyCode location pricing status";
+
+// Brokers see matches they created or that involve their own clients.
+const visibilityFilter = async (user) => {
+	if (isAdmin(user)) return {};
+	const ownClientIds = await Client.find({ assignedBroker: user._id }).distinct("_id");
+	return { $or: [{ createdBy: user._id }, { client: { $in: ownClientIds } }] };
+};
 
 exports.getMatches = async (req, res) => {
-	try {
-		const query = req.user.role === "broker" ? { createdBy: req.user._id } : {};
+	const { page, limit, interestLevel } = req.validated.query;
+	const filter = { ...(await visibilityFilter(req.user)) };
+	if (interestLevel) filter.interestLevel = interestLevel;
 
-		const matches = await Match.find(query)
-			.populate("client", "name clientCode phone email")
-			.populate("property", "title propertyCode location pricing status")
+	const [matches, total] = await Promise.all([
+		Match.find(filter)
+			.populate("client", CLIENT_FIELDS)
+			.populate("property", PROPERTY_FIELDS)
 			.populate("createdBy", "name email role")
-			.sort({ createdAt: -1 })
-			.lean();
+			.sort({ createdAt: -1, _id: -1 })
+			.skip(toSkip({ page, limit }))
+			.limit(limit)
+			.lean(),
+		Match.countDocuments(filter),
+	]);
 
-		res.status(200).json({
-			success: true,
-			data: matches,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: matches,
+		pagination: paginationMeta({ page, limit }, total),
+	});
 };
 
 exports.createMatch = async (req, res) => {
-	try {
-		const { client, property, interestLevel, notes } = req.body;
+	const { client, property, interestLevel, notes } = req.body;
 
-		if (!client || !property || !interestLevel) {
-			return res.status(400).json({
-				success: false,
-				message: "client, property, and interestLevel are required",
-			});
-		}
+	const [clientDoc, propertyExists] = await Promise.all([
+		Client.findById(client),
+		Property.exists({ _id: property }),
+	]);
 
-		const [clientExists, propertyExists] = await Promise.all([
-			Client.findById(client),
-			Property.findById(property),
-		]);
-
-		if (!clientExists || !propertyExists) {
-			return res.status(404).json({
-				success: false,
-				message: "Client or property not found",
-			});
-		}
-
-		const existingMatch = await Match.findOne({ client, property });
-		if (existingMatch) {
-			return res.status(409).json({
-				success: false,
-				message: "This client-property match already exists",
-			});
-		}
-
-		const match = await Match.create({
-			client,
-			property,
-			interestLevel,
-			notes,
-			createdBy: req.user._id,
-		});
-
-		res.status(201).json({
-			success: true,
-			message: "Match created successfully",
-			data: match,
-		});
-	} catch (error) {
-		res.status(500).json({
+	if (!clientDoc || !propertyExists) {
+		return res.status(404).json({
 			success: false,
-			message: error.message,
+			message: "Client or property not found",
 		});
 	}
+
+	if (!can(req.user, "link", "client", clientDoc)) {
+		return res.status(403).json({
+			success: false,
+			message: "You can only link your own clients",
+		});
+	}
+
+	const existingMatch = await Match.exists({ client, property });
+	if (existingMatch) {
+		return res.status(409).json({
+			success: false,
+			message: "This client-property match already exists",
+		});
+	}
+
+	const match = await Match.create({
+		client,
+		property,
+		interestLevel,
+		notes,
+		createdBy: req.user._id,
+	});
+
+	res.status(201).json({
+		success: true,
+		message: "Match created successfully",
+		data: match,
+	});
 };
 
+// Route middleware has already loaded req.resource (client) and authorized "read".
 exports.getMatchesByClient = async (req, res) => {
-	try {
-		const matches = await Match.find({ client: req.params.clientId })
-			.populate("property", "title propertyCode location pricing status")
-			.sort({ createdAt: -1 })
-			.lean();
+	const matches = await Match.find({ client: req.resource._id })
+		.populate("property", PROPERTY_FIELDS)
+		.sort({ createdAt: -1 })
+		.lean();
 
-		res.status(200).json({
-			success: true,
-			data: matches,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		data: matches,
+	});
 };
 
+// Property inventory is shared, but the client links on it are scoped per broker.
 exports.getMatchesByProperty = async (req, res) => {
-	try {
-		const matches = await Match.find({ property: req.params.propertyId })
-			.populate("client", "name clientCode phone email")
-			.sort({ createdAt: -1 })
-			.lean();
+	const filter = {
+		property: req.resource._id,
+		...(await visibilityFilter(req.user)),
+	};
 
-		res.status(200).json({
-			success: true,
-			data: matches,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	const matches = await Match.find(filter)
+		.populate("client", CLIENT_FIELDS)
+		.sort({ createdAt: -1 })
+		.lean();
+
+	res.status(200).json({
+		success: true,
+		data: matches,
+	});
 };
 
 exports.updateMatch = async (req, res) => {
-	try {
-		const match = await Match.findById(req.params.id);
+	const match = req.resource;
 
-		if (!match) {
-			return res.status(404).json({
-				success: false,
-				message: "Match not found",
-			});
-		}
-
-		if (
-			req.user.role !== "admin" &&
-			match.createdBy?.toString() !== req.user._id.toString()
-		) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to update this match",
-			});
-		}
-
-		if (req.body.interestLevel) {
-			match.interestLevel = req.body.interestLevel;
-		}
-		if (req.body.notes !== undefined) {
-			match.notes = req.body.notes;
-		}
-
-		await match.save();
-
-		res.status(200).json({
-			success: true,
-			message: "Match updated successfully",
-			data: match,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	if (req.body.interestLevel) {
+		match.interestLevel = req.body.interestLevel;
 	}
+	if (req.body.notes !== undefined) {
+		match.notes = req.body.notes;
+	}
+
+	await match.save();
+
+	res.status(200).json({
+		success: true,
+		message: "Match updated successfully",
+		data: match,
+	});
 };
 
 exports.deleteMatch = async (req, res) => {
-	try {
-		const match = await Match.findById(req.params.id);
+	await req.resource.deleteOne();
 
-		if (!match) {
-			return res.status(404).json({
-				success: false,
-				message: "Match not found",
-			});
-		}
-
-		if (
-			req.user.role !== "admin" &&
-			match.createdBy?.toString() !== req.user._id.toString()
-		) {
-			return res.status(403).json({
-				success: false,
-				message: "You are not authorized to delete this match",
-			});
-		}
-
-		await Match.findByIdAndDelete(req.params.id);
-
-		res.status(200).json({
-			success: true,
-			message: "Match deleted successfully",
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		message: "Match deleted successfully",
+	});
 };

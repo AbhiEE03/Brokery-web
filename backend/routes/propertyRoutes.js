@@ -8,14 +8,29 @@ const {
 	deleteProperty,
 	addPropertyImage,
 } = require("../controllers/propertyController");
+const Property = require("../models/Property");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const { loadResource, authorize } = require("../middleware/resourceMiddleware");
+const { validate } = require("../middleware/validate");
 const { uploadImage } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
+const { describeUpdate } = logActivity;
+const {
+	createPropertyBody,
+	updatePropertyBody,
+	listPropertiesQuery,
+} = require("../validation/schemas");
+
+const loadProperty = loadResource(Property, "property", {
+	populate: { path: "addedBy", select: "name email" },
+});
+
+router.use(verifyToken);
 
 // Create property (any authenticated user)
 router.post(
 	"/",
-	verifyToken,
+	validate({ body: createPropertyBody }),
 	logActivity(
 		(req, data) => `Created property ${data?.data?.propertyCode || req.body.title || "property"}`,
 		"property",
@@ -24,21 +39,30 @@ router.post(
 	createProperty,
 );
 
-// Get all properties with filters
-router.get("/", verifyToken, getProperties);
+// Get all properties with filters (inventory is shared across brokers)
+router.get("/", validate({ query: listPropertiesQuery }), getProperties);
 
 // Get property by ID
-router.get("/:id", verifyToken, getPropertyById);
+router.get("/:id", loadProperty, authorize("read"), getPropertyById);
 
-// Upload property image
-router.post("/:id/images", verifyToken, uploadImage.single("file"), addPropertyImage);
+// Upload property image — authorization runs before the file is stored
+router.post(
+	"/:id/images",
+	loadProperty,
+	authorize("upload"),
+	uploadImage.single("file"),
+	addPropertyImage,
+);
 
 // Update property with direct edit vs approval workflow
 router.patch(
 	"/:id",
-	verifyToken,
+	loadProperty,
+	authorize("update"),
+	validate({ body: updatePropertyBody }),
 	logActivity(
-		(req) => `Updated property ${req.params.id}`,
+		(req, payload) =>
+			describeUpdate("property", req.resource?.propertyCode || req.resource?.title, payload?.data),
 		"property",
 		(req) => req.params.id,
 	),
@@ -46,6 +70,6 @@ router.patch(
 );
 
 // Delete property (admin only)
-router.delete("/:id", verifyToken, requireAdmin, deleteProperty);
+router.delete("/:id", requireAdmin, loadProperty, deleteProperty);
 
 module.exports = router;

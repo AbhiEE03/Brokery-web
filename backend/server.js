@@ -1,55 +1,57 @@
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
+const { loadEnv } = require("./config/env");
+
+let env;
+try {
+	({ env } = loadEnv());
+} catch (error) {
+	console.error(error.message);
+	process.exit(1);
+}
+
+const mongoose = require("mongoose");
+const logger = require("./config/logger");
 const connectDB = require("./config/db");
-const authRoutes = require("./routes/authRoutes");
-const propertyRoutes = require("./routes/propertyRoutes");
-const clientRoutes = require("./routes/clientRoutes");
-const changeRequestRoutes = require("./routes/changeRequestRoutes");
-const matchRoutes = require("./routes/matchRoutes");
-const activityRoutes = require("./routes/activityRoutes");
-const analyticsRoutes = require("./routes/analyticsRoutes");
+const createApp = require("./app");
+const { createOutboxWorker } = require("./workers/outboxWorker");
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
-// app.use(cors());
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
-app.use(express.json());
-
-// Health check route
-app.get("/", (req, res) => {
-	res.json({ message: "Brokery CRM backend is running" });
-});
-
-// Auth routes
-app.use("/api/auth", authRoutes);
-
-// Property routes
-// Upload endpoints are nested under client and property routes.
-app.use("/api/properties", propertyRoutes);
-
-// Client routes
-app.use("/api/clients", clientRoutes);
-
-// Change request routes
-app.use("/api/change-requests", changeRequestRoutes);
-
-// Match routes
-app.use("/api/matches", matchRoutes);
-
-// Activity routes
-app.use("/api/activity", activityRoutes);
-
-// Analytics routes
-app.use("/api/analytics", analyticsRoutes);
+const SHUTDOWN_TIMEOUT_MS = 10000;
 
 const startServer = async () => {
+	for (const warning of loadEnv().warnings) logger.warn(warning);
+
 	await connectDB();
-	app.listen(PORT, () => {
-		console.log(`Server started on port ${PORT}`);
+	const worker = createOutboxWorker().start();
+	const server = createApp().listen(env.PORT, () => {
+		logger.info({ port: env.PORT }, "Server started");
 	});
+
+	// Graceful shutdown: stop accepting connections, let in-flight requests and
+	// the current outbox run finish, then close the database connection.
+	let shuttingDown = false;
+	const shutdown = (signal) => {
+		if (shuttingDown) return;
+		shuttingDown = true;
+		logger.info({ signal }, "Shutting down");
+
+		const force = setTimeout(() => {
+			logger.error("Forced shutdown after timeout");
+			process.exit(1);
+		}, SHUTDOWN_TIMEOUT_MS);
+		force.unref();
+
+		server.close(async () => {
+			await worker.stop();
+			await mongoose.disconnect();
+			process.exit(0);
+		});
+	};
+
+	process.on("SIGTERM", () => shutdown("SIGTERM"));
+	process.on("SIGINT", () => shutdown("SIGINT"));
 };
 
-startServer();
+startServer().catch((error) => {
+	logger.fatal({ err: error }, "Failed to start");
+	process.exit(1);
+});

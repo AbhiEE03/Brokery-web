@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { CheckCircle, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, Undo2, XCircle } from "lucide-react";
 import {
+	approveChangeRequest,
 	getChangeRequests,
-	resolveChangeRequest,
+	rejectChangeRequest,
+	withdrawChangeRequest,
 } from "../api/changeRequestApi";
 
 const entityTypeOptions = ["all", "client", "property"];
-const statusOptions = ["pending", "approved", "rejected"];
+const statusOptions = ["all", "pending", "approved", "rejected", "conflict", "superseded", "withdrawn"];
+
+const STATUS_BADGE = {
+	approved: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
+	rejected: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400",
+	conflict: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
+	superseded: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300",
+	withdrawn: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300",
+	pending: "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+};
 
 const formatValue = (value, field = "") => {
 	if (value === null || value === undefined || value === "") return "—";
@@ -36,6 +47,13 @@ const FIELD_LABELS = {
 	askingPrice: "Asking Price",
 	"location.city": "City",
 	"location.locality": "Locality",
+	"pricing.askingPrice": "Asking Price",
+	"pricing.pricePerSqft": "Price per sq ft",
+	"specs.area": "Area (sq ft)",
+	"specs.bedrooms": "Bedrooms",
+	assignedBroker: "Assigned Broker",
+	status: "Listing Status",
+	propertyType: "Property Type",
 };
 
 const formatLabel = (value) => {
@@ -72,6 +90,8 @@ const ChangeRequests = () => {
 		pages: 1,
 	});
 	const [entityType, setEntityType] = useState("all");
+	const [status, setStatus] = useState(isAdmin ? "pending" : "all");
+	const [refreshKey, setRefreshKey] = useState(0);
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -83,10 +103,11 @@ const ChangeRequests = () => {
 			page: pagination.page,
 			limit: pagination.limit,
 			entityType: entityType === "all" ? undefined : entityType,
-			startDate: startDate || undefined,
-			endDate: endDate || undefined,
+			status: status === "all" ? undefined : status,
+			from: startDate || undefined,
+			to: endDate || undefined,
 		}),
-		[pagination.page, pagination.limit, entityType, startDate, endDate],
+		[pagination.page, pagination.limit, entityType, status, startDate, endDate],
 	);
 
 	useEffect(() => {
@@ -100,27 +121,10 @@ const ChangeRequests = () => {
 				const response = await getChangeRequests(queryParams);
 				if (!isMounted) return;
 
-				const allRequests = response.data || [];
-				const filteredRequests =
-					isAdmin ?
-						allRequests.filter((item) => item.status === "pending")
-					:	allRequests;
-
-				const total = filteredRequests.length;
-				const pages = Math.max(1, Math.ceil(total / pagination.limit));
-				const page = Math.min(pagination.page, pages);
-				const start = (page - 1) * pagination.limit;
-				const pagedRequests = filteredRequests.slice(
-					start,
-					start + pagination.limit,
-				);
-
-				setRequests(pagedRequests);
+				setRequests(response.data || []);
 				setPagination((current) => ({
 					...current,
-					page,
-					total,
-					pages,
+					...(response.pagination || {}),
 				}));
 			} catch (err) {
 				if (!isMounted) return;
@@ -137,73 +141,51 @@ const ChangeRequests = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, [queryParams, isAdmin, pagination.limit, pagination.page]);
+	}, [queryParams, refreshKey]);
 
 	useEffect(() => {
 		setPagination((current) => ({ ...current, page: 1 }));
-	}, [entityType, startDate, endDate]);
+	}, [entityType, status, startDate, endDate]);
 
 	const handleResolve = async (requestId, action) => {
-		const shouldProceed = window.confirm(
-			action === "approved" ?
-				"Approve this change request?"
-			:	"Reject this change request?",
-		);
+		const confirmText = {
+			approved: "Approve this change request?",
+			rejected: "Reject this change request?",
+			withdrawn: "Withdraw this change request?",
+		}[action];
+		if (!window.confirm(confirmText)) return;
 
-		if (!shouldProceed) return;
-
-		let rejectionReason = "";
+		let adminNote;
 		if (action === "rejected") {
-			rejectionReason =
-				window.prompt("Enter a rejection reason (optional):", "") || "";
+			adminNote = window.prompt("Enter a rejection reason (optional):", "") || undefined;
 		}
 
 		setResolvingId(requestId);
 		setError("");
 
 		try {
-			await resolveChangeRequest(requestId, action, rejectionReason);
-
-			// Optimistically remove the resolved item immediately so it disappears at once
-			setRequests((current) => current.filter((r) => r._id !== requestId));
-
-			// Re-fetch to reconcile pagination counts
-			const response = await getChangeRequests({
-				page: 1,
-				limit: pagination.limit,
-				entityType: entityType === "all" ? undefined : entityType,
-				startDate: startDate || undefined,
-				endDate: endDate || undefined,
-			});
-
-			const allRequests = response.data || [];
-			const filteredRequests =
-				isAdmin ?
-					allRequests.filter((item) => item.status === "pending")
-				:	allRequests;
-			const total = filteredRequests.length;
-			const pages = Math.max(1, Math.ceil(total / pagination.limit));
-
-			setRequests(filteredRequests.slice(0, pagination.limit));
-			setPagination((current) => ({
-				...current,
-				page: 1,
-				total,
-				pages,
-			}));
+			if (action === "approved") await approveChangeRequest(requestId, adminNote);
+			else if (action === "rejected") await rejectChangeRequest(requestId, adminNote);
+			else await withdrawChangeRequest(requestId);
 		} catch (err) {
 			setError(
-				err.response?.data?.message || "Unable to resolve change request.",
+				err.response?.data?.message || "Unable to update change request.",
 			);
 		} finally {
 			setResolvingId("");
+			setRefreshKey((key) => key + 1);
 		}
 	};
 
-	const renderEntityType = (request) => {
-		if (request.client) return "CLIENT";
-		if (request.property) return "PROPERTY";
-		return "UNKNOWN";
+	const renderEntityType = (request) =>
+		(request.entityType || "unknown").toUpperCase();
+
+	const renderEntityName = (request) => {
+		const entity = request.entityId;
+		if (!entity) return "Deleted record";
+		const code = entity.clientCode || entity.propertyCode;
+		const name = entity.name || entity.title;
+		return code ? `${name} · ${code}` : name;
 	};
 
 	return (
@@ -223,7 +205,20 @@ const ChangeRequests = () => {
 					</div>
 				</header>
 
-				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr] lg:items-center lg:p-5">
+				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4 lg:items-center lg:p-5">
+					<select
+						value={status}
+						onChange={(event) => setStatus(event.target.value)}
+						aria-label="Status"
+						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
+					>
+						{statusOptions.map((option) => (
+							<option key={option} value={option}>
+								{option === "all" ? "All statuses" : option}
+							</option>
+						))}
+					</select>
+
 					<select
 						value={entityType}
 						onChange={(event) => setEntityType(event.target.value)}
@@ -305,11 +300,7 @@ const ChangeRequests = () => {
 														{request.status ?
 															<span
 																className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
-																	request.status === "approved" ?
-																		"bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-																	: request.status === "rejected" ?
-																		"bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400"
-																	:	"bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+																	STATUS_BADGE[request.status] || STATUS_BADGE.pending
 																}`}
 															>
 																{request.status}
@@ -317,10 +308,18 @@ const ChangeRequests = () => {
 														:	null}
 													</div>
 													<div className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">
-														{request.client?.name ||
-															request.property?.title ||
-															"Unknown entity"}
+														{renderEntityName(request)}
 													</div>
+														{request.status === "conflict" && request.conflictFields?.length ?
+															<p className="text-xs text-orange-700 dark:text-orange-400">
+																Not applied: {request.conflictFields.map(formatLabel).join(", ")} changed after this request was made.
+															</p>
+														:	null}
+														{request.adminNote ?
+															<p className="text-xs text-slate-500 dark:text-slate-400">
+																Note: {request.adminNote}
+															</p>
+														:	null}
 												</div>
 											</td>
 											<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
@@ -386,9 +385,16 @@ const ChangeRequests = () => {
 															</button>
 														</div>
 													:	<span className="text-slate-400">Resolved</span>
-												:	<span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
-														{request.status || "pending"}
-													</span>
+												:	request.status === "pending" ?
+													<button
+														type="button"
+														onClick={() => handleResolve(request._id, "withdrawn")}
+														disabled={resolvingId === request._id}
+														className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+													>
+														<Undo2 size={16} />Withdraw
+													</button>
+												:	<span className="text-slate-400">Closed</span>
 												}
 											</td>
 										</tr>

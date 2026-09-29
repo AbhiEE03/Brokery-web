@@ -1,92 +1,82 @@
+const mongoose = require("mongoose");
 const ActivityLog = require("../models/ActivityLog");
+const { toSkip, paginationMeta } = require("../utils/pagination");
+const { isAdmin } = require("../policies");
 
-const buildQuery = (req) => {
-	const query = {};
+const encodeCursor = (log) => `${log.createdAt.toISOString()}_${log._id}`;
 
-	if (req.user.role === "broker") {
-		query.performedBy = req.user._id;
-	}
-
-	return query;
+const decodeCursor = (cursor) => {
+	const [createdAt, id] = cursor.split("_");
+	return { createdAt: new Date(createdAt), id: new mongoose.Types.ObjectId(id) };
 };
 
-const getPagination = (req) => {
-	const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-	const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-	const skip = (page - 1) * limit;
+const buildFilter = (user, { entityType, broker, from, to }) => {
+	const filter = {};
 
-	return { page, limit, skip };
+	// Brokers only see their own actions; admins can filter by broker.
+	if (!isAdmin(user)) filter.performedBy = user._id;
+	else if (broker) filter.performedBy = broker;
+
+	if (entityType) filter.entity = entityType;
+	if (from || to) {
+		filter.createdAt = {};
+		if (from) filter.createdAt.$gte = from;
+		if (to) filter.createdAt.$lte = to;
+	}
+	return filter;
+};
+
+/**
+ * Two pagination modes:
+ * - ?page=N (offset) — what the UI uses today; cost grows with the page number.
+ * - ?cursor=… (keyset) — constant cost at any depth: "createdAt/_id before the
+ *   last row I saw", served by the { createdAt: -1, _id: -1 } index.
+ * Every response includes nextCursor for keyset clients.
+ */
+const listLogs = async (filter, query) => {
+	const { page, limit, cursor } = query;
+	let find = ActivityLog.find(filter);
+
+	if (cursor) {
+		const { createdAt, id } = decodeCursor(cursor);
+		find = ActivityLog.find({
+			...filter,
+			$or: [{ createdAt: { $lt: createdAt } }, { createdAt, _id: { $lt: id } }],
+		});
+	} else {
+		find = find.skip(toSkip({ page, limit }));
+	}
+
+	const [logs, total] = await Promise.all([
+		find
+			.sort({ createdAt: -1, _id: -1 })
+			.limit(limit)
+			.populate("performedBy", "name email role")
+			.lean(),
+		ActivityLog.countDocuments(filter),
+	]);
+
+	return {
+		data: logs,
+		pagination: {
+			...paginationMeta({ page, limit }, total),
+			nextCursor: logs.length === limit ? encodeCursor(logs[logs.length - 1]) : null,
+		},
+	};
 };
 
 exports.getLogs = async (req, res) => {
-	try {
-		const query = buildQuery(req);
-		const { page, limit, skip } = getPagination(req);
-
-		const [logs, total] = await Promise.all([
-			ActivityLog.find(query)
-				.sort({ createdAt: -1 })
-				.skip(skip)
-				.limit(limit)
-				.populate("performedBy", "name email role")
-				.lean(),
-			ActivityLog.countDocuments(query),
-		]);
-
-		res.status(200).json({
-			success: true,
-			data: logs,
-			pagination: {
-				page,
-				limit,
-				total,
-				pages: Math.ceil(total / limit),
-			},
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	const query = req.validated.query;
+	const result = await listLogs(buildFilter(req.user, query), query);
+	res.status(200).json({ success: true, ...result });
 };
 
 exports.getLogsByEntity = async (req, res) => {
-	try {
-		const query = {
-			entityId: req.params.entityId,
-		};
-
-		if (req.user.role === "broker") {
-			query.performedBy = req.user._id;
-		}
-
-		const { page, limit, skip } = getPagination(req);
-
-		const [logs, total] = await Promise.all([
-			ActivityLog.find(query)
-				.sort({ createdAt: -1 })
-				.skip(skip)
-				.limit(limit)
-				.populate("performedBy", "name email role")
-				.lean(),
-			ActivityLog.countDocuments(query),
-		]);
-
-		res.status(200).json({
-			success: true,
-			data: logs,
-			pagination: {
-				page,
-				limit,
-				total,
-				pages: Math.ceil(total / limit),
-			},
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	const query = req.validated.query;
+	const filter = {
+		...buildFilter(req.user, query),
+		entityId: req.validated.params.entityId,
+	};
+	const result = await listLogs(filter, query);
+	res.status(200).json({ success: true, ...result });
 };

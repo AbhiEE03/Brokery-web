@@ -1,283 +1,157 @@
 const Property = require("../models/Property");
-const PropertyChangeRequest = require("../models/PropertyChangeRequest");
-const { generateNextCode } = require("../utils/codeGenerator");
-const {
-	DIRECT_EDIT_FIELDS,
-	APPROVAL_REQUIRED_FIELDS,
-} = require("../utils/propertyEditRules");
-
-const flattenPayload = (value, prefix = "") => {
-	const entries = [];
-
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		for (const [key, childValue] of Object.entries(value)) {
-			const nextKey = prefix ? `${prefix}.${key}` : key;
-
-			if (
-				childValue &&
-				typeof childValue === "object" &&
-				!Array.isArray(childValue)
-			) {
-				entries.push(...flattenPayload(childValue, nextKey));
-			} else {
-				entries.push([nextKey, childValue]);
-			}
-		}
-	}
-
-	return entries;
-};
-
-const getValueByPath = (source, path) => {
-	return path.split(".").reduce((current, key) => current?.[key], source);
-};
+const { toSkip, paginationMeta } = require("../utils/pagination");
+const { proposeChanges, describeProposal } = require("../services/approvalService");
+const { escapeRegex } = require("../utils/regex");
+const { HttpError } = require("../utils/httpError");
+const lifecycle = require("../services/lifecycleService");
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
-	try {
-		const propertyCode = await generateNextCode(Property);
+	// req.body is whitelisted by createPropertyBody; status and code are server-controlled.
+	const property = await lifecycle.createProperty({ data: req.body, actor: req.user });
 
-		const property = await Property.create({
-			...req.body,
-			propertyCode,
-			addedBy: req.user._id,
-		});
-
-		res.status(201).json({
-			success: true,
-			message: "Property created successfully",
-			data: property,
-		});
-	} catch (error) {
-		res.status(400).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(201).json({
+		success: true,
+		message: "Property created successfully",
+		data: property,
+	});
 };
 
 // Get all properties with filters and pagination
 exports.getProperties = async (req, res) => {
-	try {
-		const {
-			city,
-			type,
-			status,
-			minPrice,
-			maxPrice,
-			minArea,
-			page = 1,
-			limit = 20,
-			search,
-		} = req.query;
+	const { city, type, status, minPrice, maxPrice, minArea, page, limit, search } =
+		req.validated.query;
 
-		// Build query object
-		const query = {};
-		if (city) query["location.city"] = city;
-		if (type) query.propertyType = type;
-		if (status) query.status = status;
+	// Build query object
+	const query = {};
+	if (city) query["location.cityKey"] = city.trim().toLowerCase();
+	if (type) query.propertyType = type;
+	if (status) query.status = status;
 
-		// Price range filter
-		if (minPrice || maxPrice) {
-			query["pricing.askingPrice"] = {};
-			if (minPrice) query["pricing.askingPrice"].$gte = Number(minPrice);
-			if (maxPrice) query["pricing.askingPrice"].$lte = Number(maxPrice);
-		}
-
-		// Area range filter
-		if (minArea) query["specs.area"] = { $gte: Number(minArea) };
-
-		// Execute query with pagination
-		const skip = (Number(page) - 1) * Number(limit);
-		const properties = await Property.find(query)
-			.skip(skip)
-			.limit(Number(limit))
-			.populate("addedBy", "name email")
-			.lean();
-
-		// Get total count for pagination metadata
-		const total = await Property.countDocuments(query);
-
-		res.status(200).json({
-			success: true,
-			data: properties,
-			pagination: {
-				page: Number(page),
-				limit: Number(limit),
-				total,
-				pages: Math.ceil(total / Number(limit)),
-			},
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	// Price range filter
+	if (minPrice !== undefined || maxPrice !== undefined) {
+		query["pricing.askingPrice"] = {};
+		if (minPrice !== undefined) query["pricing.askingPrice"].$gte = minPrice;
+		if (maxPrice !== undefined) query["pricing.askingPrice"].$lte = maxPrice;
 	}
-};
 
-// Get single property by ID
-exports.getPropertyById = async (req, res) => {
-	try {
-		const property = await Property.findById(req.params.id).populate(
-			"addedBy",
-			"name email",
-		);
+	// Area range filter
+	if (minArea !== undefined) query["specs.area"] = { $gte: minArea };
 
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
+	const runQuery = (filter, sort) =>
+		Promise.all([
+			Property.find(filter)
+				.sort(sort)
+				.skip(toSkip({ page, limit }))
+				.limit(limit)
+				.populate("addedBy", "name email")
+				.lean(),
+			Property.countDocuments(filter),
+		]);
+
+	let result;
+	if (search) {
+		// Whole-word search uses the text index, ranked by relevance. Partial words
+		// ("vil" for "villa") and codes don't match a text index, so a search with no
+		// text hits falls back to a substring scan over the same fields.
+		try {
+			result = await runQuery(
+				{ ...query, $text: { $search: search } },
+				{ score: { $meta: "textScore" }, createdAt: -1, _id: -1 },
+			);
+		} catch (error) {
+			if (error.code !== 27) throw error; // 27 = text index not built yet
+			result = [[], 0];
 		}
-
-		res.status(200).json({
-			success: true,
-			data: property,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
-};
-
-// Apply direct property edits immediately and queue sensitive ones for admin approval
-exports.updateProperty = async (req, res) => {
-	try {
-		const property = await Property.findById(req.params.id);
-
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
-
-		const flatFields = flattenPayload(req.body);
-		const directFields = {};
-		const sensitiveFields = {};
-
-		for (const [field, value] of flatFields) {
-			if (DIRECT_EDIT_FIELDS.includes(field)) {
-				directFields[field] = value;
-			} else if (APPROVAL_REQUIRED_FIELDS.includes(field)) {
-				sensitiveFields[field] = value;
-			}
-		}
-
-		if (
-			Object.keys(directFields).length === 0 &&
-			Object.keys(sensitiveFields).length === 0
-		) {
-			return res.status(400).json({
-				success: false,
-				message: "No supported property fields were provided",
-			});
-		}
-
-		let updatedProperty = null;
-		let pendingChangeRequest = null;
-
-		if (Object.keys(directFields).length > 0) {
-			updatedProperty = await Property.findByIdAndUpdate(
-				req.params.id,
-				{ $set: directFields },
-				{ new: true },
+		if (result[1] === 0) {
+			const pattern = { $regex: escapeRegex(search), $options: "i" };
+			result = await runQuery(
+				{
+					...query,
+					$or: [
+						{ title: pattern },
+						{ "location.locality": pattern },
+						{ propertyCode: pattern },
+					],
+				},
+				{ createdAt: -1, _id: -1 },
 			);
 		}
-
-		if (Object.keys(sensitiveFields).length > 0) {
-			const currentProperty = await Property.findById(req.params.id).lean();
-			const changes = Object.entries(sensitiveFields).map(([field, newValue]) => ({
-				field,
-				oldValue: getValueByPath(currentProperty, field),
-				newValue,
-			}));
-
-			pendingChangeRequest = await PropertyChangeRequest.create({
-				property: req.params.id,
-				requestedBy: req.user._id,
-				changes,
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			message: "Property update processed",
-			data: {
-				updated: updatedProperty,
-				pending: pendingChangeRequest,
-			},
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	} else {
+		result = await runQuery(query, { createdAt: -1, _id: -1 });
 	}
+	const [properties, total] = result;
+
+	res.status(200).json({
+		success: true,
+		data: properties,
+		pagination: paginationMeta({ page, limit }, total),
+	});
+};
+
+// Get single property by ID (loaded and authorized by route middleware)
+exports.getPropertyById = async (req, res) => {
+	res.status(200).json({
+		success: true,
+		data: req.resource,
+	});
+};
+
+// Direct fields apply now; sensitive fields become a change request (see services/approvalService.js)
+exports.updateProperty = async (req, res) => {
+	const result = await proposeChanges({
+		entityType: "property",
+		entityId: req.resource._id,
+		patch: req.body,
+		actor: req.user,
+	});
+	await result.entity.populate({ path: "addedBy", select: "name email" });
+
+	res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
+		success: true,
+		message: describeProposal(result),
+		data: {
+			updated: result.entity,
+			pending: result.pending,
+			applied: result.applied,
+			unchanged: result.unchanged,
+			superseded: result.superseded,
+		},
+	});
 };
 
 // Delete property (admin only)
 exports.deleteProperty = async (req, res) => {
-	try {
-		const property = await Property.findByIdAndDelete(req.params.id);
+	await lifecycle.softDeleteEntity({
+		entityType: "property",
+		entity: req.resource,
+		actor: req.user,
+	});
 
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			message: "Property deleted successfully",
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
-	}
+	res.status(200).json({
+		success: true,
+		message: "Property deleted successfully",
+	});
 };
 
 exports.addPropertyImage = async (req, res) => {
-	try {
-		const property = await Property.findById(req.params.id);
+	const property = req.resource;
 
-		if (!property) {
-			return res.status(404).json({
-				success: false,
-				message: "Property not found",
-			});
-		}
-
-		if (!req.file) {
-			return res.status(400).json({
-				success: false,
-				message: "Image file is required",
-			});
-		}
-
-		property.images = property.images || [];
-		property.images.push({
-			url: req.file.path,
-			uploadedAt: new Date(),
-		});
-
-		await property.save();
-
-		res.status(200).json({
-			success: true,
-			message: "Property image uploaded successfully",
-			data: property,
-		});
-	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+	if (!req.file) {
+		throw new HttpError(400, "Image file is required", { code: "FILE_REQUIRED" });
 	}
+
+	property.images = property.images || [];
+	property.images.push({
+		url: req.file.path,
+		uploadedAt: new Date(),
+	});
+
+	await property.save();
+
+	res.status(200).json({
+		success: true,
+		message: "Property image uploaded successfully",
+		data: property,
+	});
 };

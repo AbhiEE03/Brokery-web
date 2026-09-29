@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const softDelete = require("./plugins/softDelete");
 
 const clientSchema = new mongoose.Schema({
 	clientCode: {
@@ -37,6 +38,10 @@ const clientSchema = new mongoose.Schema({
 		city: {
 			type: String,
 			trim: true,
+		},
+		// Lowercased city for case-insensitive filtering; maintained on validate.
+		cityKey: {
+			type: String,
 		},
 		locality: {
 			type: String,
@@ -81,18 +86,35 @@ const clientSchema = new mongoose.Schema({
 		type: String,
 		trim: true,
 	},
-	createdAt: {
-		type: Date,
-		default: Date.now,
+	// Incremented by the approval engine on every change; concurrent writers to
+	// the same record conflict on it, which serializes their transactions.
+	revision: {
+		type: Number,
+		default: 0,
 	},
-	updatedAt: {
-		type: Date,
-		default: Date.now,
-	},
+}, { timestamps: true });
+
+clientSchema.plugin(softDelete);
+
+// Range checks run on the merged document, so a partial edit can't produce min > max.
+clientSchema.pre("validate", function () {
+	if (this.requirements) {
+		this.requirements.cityKey = this.requirements.city?.trim().toLowerCase() || undefined;
+	}
+	const r = this.requirements || {};
+	const isSet = (v) => typeof v === "number";
+	if (isSet(r.minBudget) && isSet(r.maxBudget) && r.minBudget > r.maxBudget) {
+		this.invalidate("requirements.minBudget", "minBudget must not exceed maxBudget");
+	}
+	if (isSet(r.minArea) && isSet(r.maxArea) && r.minArea > r.maxArea) {
+		this.invalidate("requirements.minArea", "minArea must not exceed maxArea");
+	}
 });
 
-clientSchema.pre("save", function () {
-	this.updatedAt = Date.now();
-});
+// Broker's client list (default sort) and admin filters.
+clientSchema.index({ assignedBroker: 1, createdAt: -1 });
+clientSchema.index({ pipelineStage: 1, createdAt: -1 });
+clientSchema.index({ createdAt: -1 });
+clientSchema.index({ "requirements.cityKey": 1 });
 
 module.exports = mongoose.model("Client", clientSchema);

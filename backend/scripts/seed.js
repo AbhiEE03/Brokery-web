@@ -3,17 +3,22 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const connectDB = require("../config/db");
-const { generateNextCode } = require("../utils/codeGenerator");
+const { nextPropertyCode, encodeClientCode } = require("../utils/codeGenerator");
 const User = require("../models/User");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
 const Match = require("../models/Match");
+const ChangeRequest = require("../models/ChangeRequest");
+const StageTransition = require("../models/StageTransition");
+const ActivityLog = require("../models/ActivityLog");
+const Notification = require("../models/Notification");
+const Counter = require("../models/Counter");
 
 const seedUsers = [
 	{
 		name: "Admin",
 		email: "admin@brokery.com",
-		password: "Admin@DEMO_contact",
+		password: null, // taken from ADMIN_PASSWORD, never committed
 		role: "admin",
 	},
 	{
@@ -531,7 +536,6 @@ const clientSeeds = [
 		phone: "9876543211",
 		email: "neha.gupta@example.com",
 		pipelineStage: "negotiation",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "flat",
 			city: "Mumbai",
@@ -549,7 +553,6 @@ const clientSeeds = [
 		phone: "9876543212",
 		email: "amit.patel@example.com",
 		pipelineStage: "site_visit",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "villa",
 			city: "Bangalore",
@@ -567,7 +570,6 @@ const clientSeeds = [
 		phone: "9876543213",
 		email: "sunita.verma@example.com",
 		pipelineStage: "contacted",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "commercial",
 			city: "Delhi",
@@ -585,7 +587,6 @@ const clientSeeds = [
 		phone: "9876543214",
 		email: "vikram.nair@example.com",
 		pipelineStage: "lead",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "flat",
 			city: "Hyderabad",
@@ -693,7 +694,6 @@ const clientSeeds = [
 		phone: "9876543220",
 		email: "nikhil.reddy@example.com",
 		pipelineStage: "negotiation",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "flat",
 			city: "Hyderabad",
@@ -711,7 +711,6 @@ const clientSeeds = [
 		phone: "9876543221",
 		email: "meera.joshi@example.com",
 		pipelineStage: "site_visit",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "villa",
 			city: "Delhi",
@@ -729,7 +728,6 @@ const clientSeeds = [
 		phone: "9876543222",
 		email: "arvind.rao@example.com",
 		pipelineStage: "contacted",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "commercial",
 			city: "Mumbai",
@@ -747,7 +745,6 @@ const clientSeeds = [
 		phone: "9876543223",
 		email: "shreya.kapoor@example.com",
 		pipelineStage: "lead",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "plot",
 			city: "Bangalore",
@@ -765,7 +762,6 @@ const clientSeeds = [
 		phone: "9876543224",
 		email: "ritika.singh@example.com",
 		pipelineStage: "lost",
-		monthsAgo: null,
 		requirements: {
 			propertyType: "flat",
 			city: "Delhi",
@@ -792,113 +788,157 @@ const matchSeeds = [
 	{ clientIndex: 8, propertyIndex: 16, interestLevel: "low" },
 ];
 
-const monthsAgo = (months, dayOffset = 0) => {
-	const date = new Date();
-	date.setMonth(date.getMonth() - months);
-	date.setDate(date.getDate() - dayOffset);
-	return date;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FORWARD = ["lead", "contacted", "site_visit", "negotiation", "closed"];
+const STEP_DAYS = [4, 6, 9, 5, 7, 3, 8]; // deterministic spacing between stages
+
+// Demo pipeline history: the stages a client passed through to reach its
+// current stage, spaced a few days apart. Marked via "seed" (synthetic data).
+const buildHistory = (client, index) => {
+	const path =
+		client.pipelineStage === "lost" ? ["lead", "contacted", "lost"]
+		: FORWARD.slice(0, FORWARD.indexOf(client.pipelineStage) + 1);
+
+	let at = client.createdAt.getTime();
+	return path.map((to, step) => {
+		if (step > 0) at += STEP_DAYS[(index + step) % STEP_DAYS.length] * DAY_MS;
+		return {
+			client: client._id,
+			from: step === 0 ? null : path[step - 1],
+			to,
+			changedBy: client.assignedBroker,
+			via: "seed",
+			at: new Date(at),
+		};
+	});
 };
 
-const buildClientCode = (index) => `CL-${String(index + 1).padStart(6, "0")}`;
+// Clients without an explicit date start far enough back that their history ends today.
+const historyLength = (stage) =>
+	stage === "lost" ? 2 : FORWARD.indexOf(stage);
 
-const seed = async () => {
+// Broker demo passwords are intentionally public (see README); override with
+// SEED_BROKER_PASSWORD for any non-demo environment.
+const resolvePassword = (user, adminPassword) => {
+	if (user.role === "admin") return adminPassword;
+	return process.env.SEED_BROKER_PASSWORD || user.password;
+};
+
+const seedDatabase = async ({ adminPassword }) => {
+	if (!adminPassword) {
+		throw new Error("ADMIN_PASSWORD must be set to seed the admin user.");
+	}
+
+	console.log("Clearing existing data...");
+	for (const Model of [Match, Client, Property, User, ChangeRequest, StageTransition, ActivityLog, Notification, Counter]) {
+		await Model.collection.deleteMany({});
+	}
+
+	console.log("Seeding users...");
+	const hashedUsers = await Promise.all(
+		seedUsers.map(async (user) => ({
+			...user,
+			password: await bcrypt.hash(resolvePassword(user, adminPassword), 10),
+		})),
+	);
+	const users = await User.insertMany(hashedUsers);
+
+	const brokers = users.filter((user) => user.role === "broker");
+
+	console.log("Seeding properties...");
+	const properties = [];
+	for (let index = 0; index < propertySeeds.length; index += 1) {
+		const propertySeed = propertySeeds[index];
+		const broker = brokers[index % brokers.length];
+		const askingPrice = propertySeed.pricing.askingPrice;
+		const area = propertySeed.specs.area || 1;
+
+		const property = await Property.create({
+			...propertySeed,
+			propertyCode: await nextPropertyCode(),
+			pricing: {
+				...propertySeed.pricing,
+				pricePerSqft: Math.round(askingPrice / area),
+			},
+			addedBy: broker._id,
+		});
+
+		properties.push(property);
+	}
+
+	console.log("Seeding clients...");
+	const clientsToInsert = clientSeeds.map((clientSeed, index) => {
+		const broker = brokers[index % brokers.length];
+		const createdAt =
+			clientSeed.createdAt ||
+			new Date(Date.now() - (historyLength(clientSeed.pipelineStage) * 7 + index % 5) * DAY_MS);
+
+		return {
+			clientCode: encodeClientCode(index + 1),
+			name: clientSeed.name,
+			phone: clientSeed.phone,
+			email: clientSeed.email,
+			assignedBroker: broker._id,
+			pipelineStage: clientSeed.pipelineStage,
+			requirements: clientSeed.requirements,
+			notes: clientSeed.notes,
+			createdAt,
+			updatedAt: createdAt,
+		};
+	});
+
+	const clients = await Client.insertMany(clientsToInsert);
+	await Counter.create({ _id: "client", seq: clients.length });
+	await StageTransition.insertMany(clients.flatMap((client, index) => buildHistory(client, index)));
+
+	console.log("Seeding matches...");
+	const matches = [];
+	for (let index = 0; index < matchSeeds.length; index += 1) {
+		const matchSeed = matchSeeds[index];
+		const broker = brokers[index % brokers.length];
+
+		const match = await Match.create({
+			client: clients[matchSeed.clientIndex]._id,
+			property: properties[matchSeed.propertyIndex]._id,
+			interestLevel: matchSeed.interestLevel,
+			notes: `Seeded match ${index + 1}`,
+			createdBy: broker._id,
+		});
+
+		matches.push(match);
+	}
+
+	console.log(
+		`Seeded ${users.length} users, ${properties.length} properties, ${clients.length} clients, and ${matches.length} matches.`,
+	);
+
+	return { users, properties, clients, matches };
+};
+
+const run = async () => {
+	const isProduction = process.env.NODE_ENV === "production";
+	if (isProduction && !process.argv.includes("--force")) {
+		console.error(
+			"Refusing to seed: NODE_ENV=production. This wipes all data. Pass --force if you really mean it.",
+		);
+		process.exit(1);
+	}
+
 	await connectDB();
 
 	try {
-		console.log("Clearing existing data...");
-		await Match.deleteMany({});
-		await Client.deleteMany({});
-		await Property.deleteMany({});
-		await User.deleteMany({});
-
-		console.log("Seeding users...");
-		const hashedUsers = await Promise.all(
-			seedUsers.map(async (user) => ({
-				...user,
-				password: await bcrypt.hash(user.password, 10),
-			})),
-		);
-		const users = await User.insertMany(hashedUsers);
-
-		const admin = users.find((user) => user.role === "admin");
-		const brokers = users.filter((user) => user.role === "broker");
-
-		console.log("Seeding properties...");
-		const properties = [];
-		for (let index = 0; index < propertySeeds.length; index += 1) {
-			const propertySeed = propertySeeds[index];
-			const broker = brokers[index % brokers.length];
-			const askingPrice = propertySeed.pricing.askingPrice;
-			const area = propertySeed.specs.area || 1;
-
-			const property = await Property.create({
-				...propertySeed,
-				propertyCode: await generateNextCode(Property),
-				pricing: {
-					...propertySeed.pricing,
-					pricePerSqft: Math.round(askingPrice / area),
-				},
-				addedBy: broker._id,
-			});
-
-			properties.push(property);
-		}
-
-		console.log("Seeding clients...");
-		const clientsToInsert = clientSeeds.map((clientSeed, index) => {
-			const broker = brokers[index % brokers.length];
-			const createdAt =
-				clientSeed.createdAt ? clientSeed.createdAt
-				: clientSeed.monthsAgo === null ? new Date()
-				: monthsAgo(clientSeed.monthsAgo, 7);
-			const updatedAt =
-				clientSeed.createdAt ? clientSeed.createdAt
-				: clientSeed.monthsAgo === null ? new Date()
-				: monthsAgo(clientSeed.monthsAgo);
-
-			return {
-				clientCode: buildClientCode(index),
-				name: clientSeed.name,
-				phone: clientSeed.phone,
-				email: clientSeed.email,
-				assignedBroker: broker._id,
-				pipelineStage: clientSeed.pipelineStage,
-				requirements: clientSeed.requirements,
-				notes: clientSeed.notes,
-				createdAt,
-				updatedAt,
-			};
-		});
-
-		const clients = await Client.insertMany(clientsToInsert);
-
-		console.log("Seeding matches...");
-		const matches = [];
-		for (let index = 0; index < matchSeeds.length; index += 1) {
-			const matchSeed = matchSeeds[index];
-			const broker = brokers[index % brokers.length];
-
-			const match = await Match.create({
-				client: clients[matchSeed.clientIndex]._id,
-				property: properties[matchSeed.propertyIndex]._id,
-				interestLevel: matchSeed.interestLevel,
-				notes: `Seeded match ${index + 1}`,
-				createdBy: broker._id,
-			});
-
-			matches.push(match);
-		}
-
-		console.log(
-			`Seeded ${users.length} users, ${properties.length} properties, ${clients.length} clients, and ${matches.length} matches.`,
-		);
+		await seedDatabase({ adminPassword: process.env.ADMIN_PASSWORD });
 	} catch (error) {
 		console.error("Seeding failed:", error.message);
-		process.exit(1);
+		process.exitCode = 1;
 	} finally {
 		await mongoose.disconnect();
 		console.log("MongoDB disconnected after seeding.");
 	}
 };
 
-seed();
+if (require.main === module) {
+	run();
+}
+
+module.exports = { seedDatabase };

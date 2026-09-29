@@ -34,3 +34,6 @@ Thumbs.db
 coverage/
 
 
+
+# Local upload driver output
+backend/.dev-uploads/

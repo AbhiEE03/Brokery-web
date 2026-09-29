@@ -5,10 +5,17 @@ export const getChangeRequests = async (params = {}) => {
 	return data;
 };
 
-export const resolveChangeRequest = async (id, action, rejectionReason) => {
-	const { data } = await api.patch(`/change-requests/${id}/resolve`, {
-		action,
-		adminNote: rejectionReason,
-	});
+export const approveChangeRequest = async (id, adminNote) => {
+	const { data } = await api.post(`/change-requests/${id}/approve`, { adminNote });
+	return data;
+};
+
+export const rejectChangeRequest = async (id, adminNote) => {
+	const { data } = await api.post(`/change-requests/${id}/reject`, { adminNote });
+	return data;
+};
+
+export const withdrawChangeRequest = async (id) => {
+	const { data } = await api.post(`/change-requests/${id}/withdraw`);
 	return data;
 };
