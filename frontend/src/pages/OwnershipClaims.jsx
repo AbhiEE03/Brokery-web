@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, ShieldCheck, UserCheck } from "lucide-react";
-import { getOwnershipClaims, resolveOwnershipClaim } from "../api/ownershipApi";
+import { useOwnershipClaims, useResolveOwnershipClaim } from "../hooks/queries";
+import useConfirmDialog from "../hooks/useConfirmDialog";
+import { messageFrom } from "../utils/errors";
 
 const statusOptions = ["open", "upheld", "transferred", "all"];
 
@@ -30,65 +32,54 @@ const Person = ({ label, user, time, timeLabel }) => (
 
 const OwnershipClaims = () => {
 	const [status, setStatus] = useState("open");
-	const [claims, setClaims] = useState([]);
-	const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
+	const [page, setPage] = useState(1);
 	const [notice, setNotice] = useState("");
-	const [resolvingId, setResolvingId] = useState("");
-	const [refreshKey, setRefreshKey] = useState(0);
+	const [actionError, setActionError] = useState("");
+	const { confirm, dialog } = useConfirmDialog();
 
-	useEffect(() => {
-		let isMounted = true;
-		const load = async () => {
-			setLoading(true);
-			setError("");
-			try {
-				const response = await getOwnershipClaims({
-					page: pagination.page,
-					limit: pagination.limit,
-					status: status === "all" ? undefined : status,
-				});
-				if (!isMounted) return;
-				setClaims(response.data || []);
-				setPagination((current) => ({ ...current, ...(response.pagination || {}) }));
-			} catch (err) {
-				if (isMounted) setError(err.response?.data?.message || "Failed to load ownership claims.");
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-		load();
-		return () => {
-			isMounted = false;
-		};
-	}, [status, pagination.page, pagination.limit, refreshKey]);
+	const query = useOwnershipClaims({ status: status === "all" ? undefined : status, page, limit: 10 });
+	const resolve = useResolveOwnershipClaim();
+	const claims = query.data?.data || [];
+	const pagination = query.data?.pagination || { page: 1, pages: 1 };
+	const loading = query.isPending;
+	const error = query.isError ? messageFrom(query.error, "Failed to load ownership claims.") : actionError;
+	const resolvingId = resolve.isPending ? resolve.variables?.id : "";
+	const setPagination = (update) => setPage((current) => update({ page: current }).page);
 
 	const handleResolve = async (claim, decision) => {
 		const clientName = claim.existingClient?.name || "this client";
-		const question =
+		const result = await confirm(
 			decision === "transfer" ?
-				`Transfer ${clientName} to ${claim.claimant?.name}?`
-			:	`Keep ${clientName} with ${claim.existingBroker?.name || "the current broker"}?`;
-		if (!window.confirm(question)) return;
-		const note = window.prompt("Add a note for the record (optional):", "") || undefined;
+				{
+					title: `Transfer ${clientName} to ${claim.claimant?.name}?`,
+					message: `${claim.existingBroker?.name || "The current broker"} will lose access to this client. The change is recorded in the audit log.`,
+					confirmLabel: "Transfer",
+					tone: "danger",
+					noteLabel: "Note for the record",
+				}
+			:	{
+					title: `Keep ${clientName} with ${claim.existingBroker?.name || "the current broker"}?`,
+					message: `${claim.claimant?.name} will not get access to this client.`,
+					confirmLabel: "Keep with current broker",
+					noteLabel: "Note for the record",
+				},
+		);
+		if (!result) return;
 
-		setResolvingId(claim._id);
-		setError("");
 		setNotice("");
-		try {
-			const response = await resolveOwnershipClaim(claim._id, decision, note);
-			setNotice(response.message);
-		} catch (err) {
-			setError(err.response?.data?.message || "Unable to resolve the claim.");
-		} finally {
-			setResolvingId("");
-			setRefreshKey((key) => key + 1);
-		}
+		setActionError("");
+		resolve.mutate(
+			{ id: claim._id, decision, note: result.note },
+			{
+				onSuccess: (response) => setNotice(response.message),
+				onError: (err) => setActionError(messageFrom(err, "Unable to resolve the claim.")),
+			},
+		);
 	};
 
 	return (
 		<section className="p-6 sm:p-8">
+			{dialog}
 			<div className="flex flex-col gap-6">
 				<header className="flex flex-col gap-3 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
@@ -102,7 +93,7 @@ const OwnershipClaims = () => {
 						value={status}
 						onChange={(event) => {
 							setStatus(event.target.value);
-							setPagination((current) => ({ ...current, page: 1 }));
+							setPage(1);
 						}}
 						aria-label="Status"
 						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-300"
