@@ -88,15 +88,9 @@ const rows = [
 	["activity requires a token", "get", () => "/api/activity", "anon", 401],
 ];
 
-// Rows the current implementation gets wrong. Each is fixed in Phase 2 and
-// then removed from this set (see docs/ENGINEERING_LOG.md).
-const KNOWN_FAILURES = new Set([
-	"other broker cannot upload client document",
-	"other broker cannot edit property",
-	"other broker cannot upload property image",
-	"other broker cannot list matches of a client",
-	"other broker cannot link someone else's client",
-]);
+// Rows that failed before Phase 2 (see docs/ENGINEERING_LOG.md). Keep this
+// empty: a new entry means an authorization regression.
+const KNOWN_FAILURES = new Set([]);
 
 describe("authorization matrix", () => {
 	for (const [description, method, path, actor, expected, body, attach] of rows) {
@@ -119,8 +113,7 @@ describe("authorization matrix", () => {
 });
 
 describe("object-level data scoping", () => {
-	// Known failure until Phase 2.
-	test.failing("matches by property only include the broker's own links", async () => {
+	test("matches by property only include the broker's own links", async () => {
 		const fx = await buildFixture();
 		const res = await request()
 			.get(`/api/matches/property/${fx.property._id}`)

@@ -26,3 +26,13 @@ Short entries for notable bugs: how they were found, why they happened, how they
 **Root cause:** ownership checks were written per controller, by hand, and several handlers never got one.
 
 **Fix:** Phase 2 (see below).
+
+### Fix (Phase 2)
+
+- One policy module (`backend/policies/index.js`) defines who can read/update/upload/link/delete each resource type.
+- Routes now run `loadResource → authorize(action) → validate → handler`. On upload routes authorization runs **before** Multer, so a rejected request never stores a file.
+- Request bodies and queries are parsed with Zod schemas (`backend/validation/schemas.js`). Create schemas whitelist fields, so `pipelineStage`, `status`, codes and timestamps can't be set by the client. Pagination is bounded (`1 ≤ limit ≤ 100`); malformed ids and queries return 400 instead of 500.
+- Search input is escaped before being used in `$regex`.
+- Login returns 401 for bad credentials, rejects non-string input, and disabled accounts are blocked at login and on every request.
+
+**Result:** the authorization matrix has no known failures; `KNOWN_FAILURES` is empty and any new entry would be a regression.

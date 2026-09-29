@@ -1,9 +1,9 @@
 const { request, makeUser, authHeader } = require("./factories");
 
 // Brokers must not be able to skip the approval workflow by setting sensitive
-// fields at creation time (mass assignment). Known failures until Phase 2.
+// fields at creation time (mass assignment).
 describe("create-time field policy", () => {
-	test.failing("broker-created client always starts as a lead", async () => {
+	test("broker-created client always starts as a lead", async () => {
 		const broker = await makeUser();
 		const res = await request()
 			.post("/api/clients")
@@ -13,7 +13,7 @@ describe("create-time field policy", () => {
 		expect(res.body.data.pipelineStage).toBe("lead");
 	});
 
-	test.failing("broker-created property always starts as available", async () => {
+	test("broker-created property always starts as available", async () => {
 		const broker = await makeUser();
 		const res = await request()
 			.post("/api/properties")

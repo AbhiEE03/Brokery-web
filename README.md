@@ -23,7 +23,8 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 
 ## Features
 
-- **Roles** — Admin and Broker. Admin-only routes (analytics, user registration, deletes, approvals) are enforced by backend middleware; brokers only see their own clients.
+- **Roles & object-level authorization** — Admin and Broker. A single policy module decides who can read/update/upload/delete each resource: brokers only access their own clients and the matches involving them; property inventory is shared for reading but only the broker who listed a property (or an admin) can change it. Enforced by route middleware and covered by a table-driven authorization test.
+- **Validated input** — every body and query is parsed with Zod; server-controlled fields (stage, status, codes) can't be set by clients.
 - **Two-tier edits** — low-risk fields (phone, notes, locality…) update immediately; sensitive fields (pipeline stage, budget, city, asking price…) create a change request that an admin approves or rejects with a before/after view. Field rules live in `backend/utils/*EditRules.js`.
 - **Analytics dashboard** — MongoDB aggregation endpoints for pipeline distribution, broker conversion, monthly closures and available inventory by city, rendered with Recharts.
 - **Client–property links** — brokers record which client is interested in which property and how strongly (manual links; see Roadmap for automated matching).

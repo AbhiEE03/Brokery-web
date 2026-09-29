@@ -40,8 +40,8 @@ describe("uploads", () => {
 		expect(storeFile).not.toHaveBeenCalled();
 	});
 
-	// Known failure until Phase 2: authorization must run before the file is stored.
-	test.failing("unauthorized uploads never reach storage", async () => {
+	// Authorization must run before the file is stored.
+	test("unauthorized uploads never reach storage", async () => {
 		const owner = await makeUser();
 		const other = await makeUser();
 		const client = await makeClient({ broker: owner });
