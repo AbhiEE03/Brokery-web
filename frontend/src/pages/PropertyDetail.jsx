@@ -112,9 +112,7 @@ const PropertyDetail = () => {
 				updatedProperty ? { ...current, ...updatedProperty } : current,
 			);
 
-			if (response.data.pending) {
-				setNotice("Sensitive changes submitted for approval.");
-			}
+			setNotice(response.message || "");
 		} catch (err) {
 			setError(err.response?.data?.message || "Unable to save property.");
 		} finally {
