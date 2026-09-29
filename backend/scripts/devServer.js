@@ -28,6 +28,8 @@ const start = async () => {
 	await seedDatabase({ adminPassword: LOCAL_ADMIN_PASSWORD });
 
 	const createApp = require("../app");
+	const { createOutboxWorker } = require("../workers/outboxWorker");
+	const worker = createOutboxWorker({ intervalMs: 5000 }).start();
 	const server = createApp().listen(process.env.PORT, () => {
 		console.log(`\nSandbox API on http://localhost:${process.env.PORT}/api`);
 		console.log(`Admin login (sandbox only): admin@brokery.com / ${LOCAL_ADMIN_PASSWORD}`);
@@ -36,6 +38,7 @@ const start = async () => {
 
 	const shutdown = async () => {
 		server.close();
+		await worker.stop();
 		await mongoose.disconnect();
 		await replSet.stop();
 		process.exit(0);

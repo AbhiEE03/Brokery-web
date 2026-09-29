@@ -1,6 +1,7 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const emailService = require("../utils/emailService");
+const logger = require("../config/logger");
 
 const MAX_ATTEMPTS = 5;
 const BASE_BACKOFF_MS = 30 * 1000;
@@ -61,14 +62,25 @@ const dispatchPending = async ({ limit = 20 } = {}) => {
 	return processed;
 };
 
+const STUCK_AFTER_MS = 5 * 60 * 1000;
+
+// A process that crashed mid-send leaves rows in "sending"; put them back in the queue.
+const reclaimStuck = async () => {
+	const result = await Notification.updateMany(
+		{ status: "sending", updatedAt: { $lt: new Date(Date.now() - STUCK_AFTER_MS) } },
+		{ $set: { status: "queued", nextAttemptAt: new Date() } },
+	);
+	return result.modifiedCount;
+};
+
 // Best-effort immediate delivery after a commit; retries are handled by the worker.
 const dispatchSoon = () => {
 	if (process.env.NODE_ENV === "test") return;
 	setImmediate(() => {
 		dispatchPending().catch((error) => {
-			console.error("Notification dispatch failed:", error.message);
+			logger.error({ err: error }, "Notification dispatch failed");
 		});
 	});
 };
 
-module.exports = { dispatchPending, dispatchSoon, MAX_ATTEMPTS };
+module.exports = { dispatchPending, dispatchSoon, reclaimStuck, MAX_ATTEMPTS };
