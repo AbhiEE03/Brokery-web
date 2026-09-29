@@ -1,7 +1,39 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BadgeAlert, FileText, Save } from "lucide-react";
 import { getClientById, updateClient, uploadClientDocument } from "../api/clientApi";
+import { useEditPolicies } from "../hooks/queries";
+import RecordHistory from "../components/RecordHistory";
+import EditPreview from "../components/EditPreview";
+import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
+import { messageFrom } from "../utils/errors";
+
+const NUMERIC_FIELDS = new Set([
+	"requirements.minBudget",
+	"requirements.maxBudget",
+	"requirements.minArea",
+	"requirements.maxArea",
+	"requirements.bedrooms",
+]);
+
+const PIPELINE_STAGES = ["lead", "contacted", "site_visit", "negotiation", "closed", "lost"];
+
+const toForm = (client) => ({
+	phone: client.phone || "",
+	email: client.email || "",
+	notes: client.notes || "",
+	pipelineStage: client.pipelineStage || "",
+	requirements: {
+		city: client.requirements?.city || "",
+		locality: client.requirements?.locality || "",
+		minBudget: client.requirements?.minBudget ?? "",
+		maxBudget: client.requirements?.maxBudget ?? "",
+		minArea: client.requirements?.minArea ?? "",
+		maxArea: client.requirements?.maxArea ?? "",
+		bedrooms: client.requirements?.bedrooms ?? "",
+	},
+});
 
 const safeLabel = (value) => String(value ?? "").replace(/_/g, " ");
 
@@ -13,6 +45,10 @@ const ClientDetail = () => {
 	const [error, setError] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [pendingApproval, setPendingApproval] = useState(null);
+	const [saveMessage, setSaveMessage] = useState("");
+	const [initialForm, setInitialForm] = useState(null);
+	const queryClient = useQueryClient();
+	const { data: policies } = useEditPolicies();
 	const [uploading, setUploading] = useState(false);
 	const [uploadMessage, setUploadMessage] = useState("");
 	const [uploadError, setUploadError] = useState("");
@@ -36,7 +72,7 @@ const ClientDetail = () => {
 		},
 	});
 
-	const loadClient = async ({ setBusy = false, mountedCheck = () => true } = {}) => {
+	const loadClient = useCallback(async ({ setBusy = false, mountedCheck = () => true } = {}) => {
 		if (setBusy) setLoading(true);
 		setError("");
 
@@ -46,28 +82,15 @@ const ClientDetail = () => {
 
 			const currentClient = response.data;
 			setClient(currentClient);
-			setFormData({
-				phone: currentClient.phone || "",
-				email: currentClient.email || "",
-				notes: currentClient.notes || "",
-				pipelineStage: currentClient.pipelineStage || "",
-				requirements: {
-					city: currentClient.requirements?.city || "",
-					locality: currentClient.requirements?.locality || "",
-					minBudget: currentClient.requirements?.minBudget ?? "",
-					maxBudget: currentClient.requirements?.maxBudget ?? "",
-					minArea: currentClient.requirements?.minArea ?? "",
-					maxArea: currentClient.requirements?.maxArea ?? "",
-					bedrooms: currentClient.requirements?.bedrooms ?? "",
-				},
-			});
+			setFormData(toForm(currentClient));
+			setInitialForm(toForm(currentClient));
 		} catch (err) {
 			if (!mountedCheck()) return;
 			setError(err.response?.data?.message || "Failed to load client.");
 		} finally {
 			if (mountedCheck() && setBusy) setLoading(false);
 		}
-	};
+	}, [id]);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -77,7 +100,11 @@ const ClientDetail = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, [id]);
+	}, [loadClient]);
+
+	const changed = initialForm ? changedPaths(initialForm, formData) : [];
+	const preview = classifyChanges(changed, policies?.client, policies?.appliesDirectly);
+	const needsApproval = (field) => !policies?.appliesDirectly && policies?.client.approval.includes(field);
 
 	const handleChange = (event) => {
 		const { name, value } = event.target;
@@ -98,52 +125,26 @@ const ClientDetail = () => {
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
+		setSaveMessage("");
+		if (!changed.length) {
+			setSaveMessage("Nothing to save. No fields were changed.");
+			return;
+		}
 		setSaving(true);
-		setError("");
-
-		const payload = {
-			phone: formData.phone,
-			email: formData.email,
-			notes: formData.notes,
-			pipelineStage: formData.pipelineStage,
-			requirements: {
-				city: formData.requirements.city,
-				locality: formData.requirements.locality,
-				minBudget:
-					formData.requirements.minBudget === "" ?
-						""
-					:	Number(formData.requirements.minBudget),
-				maxBudget:
-					formData.requirements.maxBudget === "" ?
-						""
-					:	Number(formData.requirements.maxBudget),
-				minArea:
-					formData.requirements.minArea === "" ?
-						""
-					:	Number(formData.requirements.minArea),
-				maxArea:
-					formData.requirements.maxArea === "" ?
-						""
-					:	Number(formData.requirements.maxArea),
-				bedrooms:
-					formData.requirements.bedrooms === "" ?
-						""
-					:	Number(formData.requirements.bedrooms),
-			},
-		};
 
 		try {
-			const response = await updateClient(id, payload);
+			// Only the fields the user actually changed.
+			const response = await updateClient(id, buildPatch(changed, formData, NUMERIC_FIELDS));
 			const updatedClient = response.data.updated || client;
-			setClient((current) =>
-				updatedClient ? { ...current, ...updatedClient } : current,
-			);
-
-			if (response.data.pending) {
-				setPendingApproval(response.data.pending);
-			}
+			setClient((current) => (updatedClient ? { ...current, ...updatedClient } : current));
+			if (response.data.pending) setPendingApproval(response.data.pending);
+			setSaveMessage(response.message);
+			// Approval-pending fields snap back to their current value until approved.
+			setFormData(toForm(updatedClient));
+			setInitialForm(toForm(updatedClient));
+			queryClient.invalidateQueries({ queryKey: ["history", id] });
 		} catch (err) {
-			setError(err.response?.data?.message || "Unable to update client.");
+			setSaveMessage(messageFrom(err, "Unable to update client."));
 		} finally {
 			setSaving(false);
 		}
@@ -302,8 +303,9 @@ const ClientDetail = () => {
 								Edit client
 							</h2>
 							<p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-								Direct fields save immediately. Sensitive fields will be routed
-								into a change request.
+								{policies?.appliesDirectly ?
+									"As an admin, your edits apply immediately (and are recorded in the history)."
+								:	"Most fields save immediately. Fields marked “needs approval” are sent to an admin first."}
 							</p>
 
 							<form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -311,7 +313,7 @@ const ClientDetail = () => {
 									["phone", "Phone"],
 									["email", "Email"],
 									["notes", "Notes"],
-									["pipelineStage", "Pipeline Stage"],
+									["pipelineStage", "Pipeline Stage", PIPELINE_STAGES],
 									["requirements.city", "Requirement City"],
 									["requirements.locality", "Requirement Locality"],
 									["requirements.minBudget", "Min Budget"],
@@ -319,24 +321,51 @@ const ClientDetail = () => {
 									["requirements.minArea", "Min Area"],
 									["requirements.maxArea", "Max Area"],
 									["requirements.bedrooms", "Bedrooms"],
-								].map(([name, label]) => (
-									<label key={name} className="block">
-										<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400">
-											{label}
-										</span>
-										<input
-											type="text"
-											name={name}
-											value={
-												name.startsWith("requirements.") ?
-													formData.requirements[name.split(".")[1]]
-												:	formData[name]
+								].map(([name, label, options]) => {
+									const value =
+										name.startsWith("requirements.") ?
+											formData.requirements[name.split(".")[1]]
+										:	formData[name];
+									const inputClass = `w-full rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 dark:bg-slate-700/50 dark:text-white ${
+										changed.includes(name) ? "border-sky-400 dark:border-sky-500" : "border-slate-200 dark:border-slate-700"
+									}`;
+									return (
+										<label key={name} className="block">
+											<span className="mb-2 flex items-center justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
+												{label}
+												{needsApproval(name) ?
+													<span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+														needs approval
+													</span>
+												:	null}
+											</span>
+											{options ?
+												<select name={name} value={value} onChange={handleChange} className={inputClass}>
+													{options.map((option) => (
+														<option key={option} value={option}>
+															{option.replace(/_/g, " ")}
+														</option>
+													))}
+												</select>
+											:	<input
+													type={NUMERIC_FIELDS.has(name) ? "number" : "text"}
+													min={NUMERIC_FIELDS.has(name) ? 0 : undefined}
+													name={name}
+													value={value}
+													onChange={handleChange}
+													className={inputClass}
+												/>
 											}
-											onChange={handleChange}
-											className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-sm text-slate-950 dark:text-white dark:text-white outline-none transition focus:border-slate-400"
-										/>
-									</label>
-								))}
+										</label>
+									);
+								})}
+
+								<EditPreview preview={preview} />
+								{saveMessage ?
+									<p role="status" className="text-sm text-slate-600 dark:text-slate-300">
+										{saveMessage}
+									</p>
+								:	null}
 
 								<button
 									type="submit"
@@ -354,6 +383,8 @@ const ClientDetail = () => {
 								</div>
 							:	null}
 						</aside>
+
+						<RecordHistory entityId={id} />
 
 						<section className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:p-8 xl:col-span-2">
 							<div className="flex flex-wrap items-center justify-between gap-3">
