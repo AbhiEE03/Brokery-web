@@ -80,3 +80,34 @@ Property search uses the text index for whole words and falls back to a substrin
 **Not solved by indexes (next steps):**
 - The dashboard summary and broker-performance aggregations (~160–180 ms p50) scan whole collections. That's inherent to `$group` over everything, and the fix is pre-aggregation (e.g. per-broker counters updated in the approval transaction) or a short cache.
 - "Broker's matches" (111 ms) filters with a `$in` over the broker's ~5k client ids. Denormalising the client's broker onto the match would turn it into a single index lookup.
+
+---
+
+## 2026-09-30 — An audit trail you can check, and one owner per buyer
+
+**Problem:**
+- The activity log was written by middleware after the response was sent, outside the transaction.
+  - A failed write left a change unlogged, and a rolled-back change could still be logged.
+  - It covered only creates and updates: no deletes, uploads, match changes or logins.
+  - Entries could be edited without trace.
+- Separately, nothing stopped two brokers from registering the same buyer. In brokerages that is exactly where commission disputes start.
+
+**Fix:** see [ADR 003](adr/003-audit-log-and-ownership.md).
+- **Audit log:**
+  - Entries are written inside the change's own transaction and hash-chained through a counter document that holds the chain head.
+  - `verifyChain()` pinpoints the first edited, recomputed or missing entry.
+  - The old activity log was migrated into the chain as legacy entries.
+- **Ownership:**
+  - Phone numbers are normalised to `+91XXXXXXXXXX`, with a unique partial index on the key.
+  - A duplicate from another broker returns 409 without leaking the existing record, and opens an ownership claim carrying the first audit entry as evidence.
+  - Admins keep or transfer the client; a transfer goes through the approval engine in the same transaction.
+
+**Tests that pin it down:**
+- A rolled-back transaction leaves no entry and doesn't advance the chain.
+- 50 concurrent audit writes give a gap-free, valid chain.
+- Editing an entry, recomputing its hash, or deleting one is each detected at the right sequence number.
+- Two brokers registering the same number at the same moment get exactly one 201 and one 409 (10 rounds).
+- The claimant's 409 contains none of the owner's name, email, broker or code.
+- Three concurrent "transfer" clicks: one 200, two 409s.
+
+**Trade-off:** one counter document serialises audit writes. That's fine at CRM volumes; beyond that you'd chain per entity or hash in batches. The chain proves integrity against edits, not against someone rewriting the whole database. Publishing the head hash periodically would cover that.
