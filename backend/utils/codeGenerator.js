@@ -48,7 +48,7 @@ const nextSequence = async (name, { session } = {}) => {
 	const counter = await Counter.findOneAndUpdate(
 		{ _id: name },
 		{ $inc: { seq: 1 } },
-		{ upsert: true, new: true, session },
+		{ upsert: true, returnDocument: "after", session },
 	);
 	return counter.seq;
 };

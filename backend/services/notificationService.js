@@ -38,7 +38,7 @@ const dispatchPending = async ({ limit = 20 } = {}) => {
 		const notification = await Notification.findOneAndUpdate(
 			{ status: "queued", nextAttemptAt: { $lte: new Date() } },
 			{ $set: { status: "sending" }, $inc: { attempts: 1 } },
-			{ new: true, sort: { nextAttemptAt: 1 } },
+			{ returnDocument: "after", sort: { nextAttemptAt: 1 } },
 		);
 		if (!notification) break;
 

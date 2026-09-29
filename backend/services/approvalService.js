@@ -291,7 +291,7 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 					...(adminNote ? { adminNote } : {}),
 				},
 			},
-			{ new: true, session },
+			{ returnDocument: "after", session },
 		);
 
 		if (!cr) {
@@ -363,7 +363,7 @@ const withdrawChangeRequest = async ({ id, actor }) => {
 	const cr = await ChangeRequest.findOneAndUpdate(
 		{ _id: id, status: "pending", requestedBy: actor._id },
 		{ $set: { status: "withdrawn", resolvedAt: new Date() } },
-		{ new: true },
+		{ returnDocument: "after" },
 	);
 	if (cr) return cr;
 
