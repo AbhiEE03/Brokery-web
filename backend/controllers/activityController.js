@@ -1,6 +1,9 @@
 const AuditLog = require("../models/AuditLog");
+const Client = require("../models/Client");
+const Property = require("../models/Property");
+const { HttpError } = require("../utils/httpError");
 const { toSkip, paginationMeta } = require("../utils/pagination");
-const { isAdmin } = require("../policies");
+const { isAdmin, can } = require("../policies");
 const { verifyChain } = require("../services/auditService");
 
 const buildFilter = (user, { entityType, broker, action, from, to }) => {
@@ -71,13 +74,28 @@ exports.getLogs = async (req, res) => {
 	res.status(200).json({ success: true, ...result });
 };
 
-// History of one record: entries about it directly, plus change requests,
-// matches and claims whose subject it is.
+// History of one client or property: entries about it directly, plus change
+// requests and matches whose subject it is. Visible to anyone who may read the
+// record (not only to the people who acted on it). Ownership-claim entries name
+// the competing broker, so they stay admin-only.
 exports.getLogsByEntity = async (req, res) => {
 	const query = req.validated.query;
 	const { entityId } = req.validated.params;
+
+	const client = await Client.findById(entityId).select("assignedBroker").lean();
+	const property = client ? null : await Property.exists({ _id: entityId });
+	if (!client && !property) throw new HttpError(404, "Record not found");
+	if (client && !can(req.user, "read", "client", client)) {
+		throw new HttpError(403, "You don't have access to this client's history");
+	}
+
+	const { actor, ...rest } = buildFilter({ role: "admin" }, query);
 	const filter = {
-		...buildFilter(req.user, query),
+		...rest,
+		...(isAdmin(req.user) && actor ? { actor } : {}),
+		...(isAdmin(req.user) ? {}
+		: rest.entityType && rest.entityType !== "ownership_claim" ? { entityType: rest.entityType }
+		: { entityType: { $ne: "ownership_claim" } }),
 		$or: [{ entityId }, { "subject.id": entityId }],
 	};
 	const result = await listEntries(filter, query);

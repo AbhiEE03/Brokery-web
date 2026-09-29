@@ -15,6 +15,7 @@ const matchRoutes = require("./routes/matchRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const ownershipRoutes = require("./routes/ownershipRoutes");
+const metaRoutes = require("./routes/metaRoutes");
 const { createApiLimiter } = require("./middleware/rateLimit");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -91,6 +92,7 @@ const createApp = () => {
 	app.use("/api/activity", activityRoutes);
 	app.use("/api/analytics", analyticsRoutes);
 	app.use("/api/ownership-claims", ownershipRoutes);
+	app.use("/api/meta", metaRoutes);
 
 	app.use(notFoundHandler);
 	app.use(errorHandler);

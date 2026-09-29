@@ -260,7 +260,7 @@ const listChangeRequestsQuery = z
 	.object({
 		...pagination,
 		status: z
-			.enum(["pending", "approved", "rejected", "conflict", "superseded", "withdrawn"])
+			.enum(["pending", "approved", "rejected", "conflict", "superseded", "withdrawn", "resolved"])
 			.optional(),
 		entityType: z.enum(["client", "property"]).optional(),
 		from: z.coerce.date().optional(),
