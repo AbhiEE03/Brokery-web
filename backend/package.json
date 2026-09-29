@@ -11,7 +11,8 @@
 		"dev:sandbox": "node scripts/devServer.js",
 		"migrate:status": "migrate-mongo status",
 		"migrate:up": "migrate-mongo up",
-		"migrate:down": "migrate-mongo down"
+		"migrate:down": "migrate-mongo down",
+		"bench": "node bench/run.js"
 	},
 	"keywords": [],
 	"author": "",
@@ -35,6 +36,8 @@
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
+		"@faker-js/faker": "^10.6.0",
+		"autocannon": "^8.0.0",
 		"jest": "^29.7.0",
 		"mongodb-memory-server": "^11.3.0",
 		"nodemon": "^3.1.14",
@@ -51,5 +54,8 @@
 			"<rootDir>/tests/**/*.test.js"
 		],
 		"testTimeout": 30000
+	},
+	"overrides": {
+		"uuid": "^11.1.1"
 	}
 }
