@@ -14,6 +14,7 @@ const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadImage } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
+const { describeUpdate } = logActivity;
 const {
 	createPropertyBody,
 	updatePropertyBody,
@@ -60,7 +61,8 @@ router.patch(
 	authorize("update"),
 	validate({ body: updatePropertyBody }),
 	logActivity(
-		(req) => `Updated property ${req.resource?.propertyCode || req.params.id}`,
+		(req, payload) =>
+			describeUpdate("property", req.resource?.propertyCode || req.resource?.title, payload?.data),
 		"property",
 		(req) => req.params.id,
 	),

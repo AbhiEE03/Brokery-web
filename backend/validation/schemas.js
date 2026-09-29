@@ -235,6 +235,26 @@ const resolveChangeRequestBody = z.object({
 	adminNote: z.string().trim().max(500).optional(),
 });
 
+const decisionBody = z.object({
+	adminNote: z.string().trim().max(500).optional(),
+});
+
+const listChangeRequestsQuery = z
+	.object({
+		...pagination,
+		status: z
+			.enum(["pending", "approved", "rejected", "conflict", "superseded", "withdrawn"])
+			.optional(),
+		entityType: z.enum(["client", "property"]).optional(),
+		from: z.coerce.date().optional(),
+		to: z.coerce.date().optional(),
+	})
+	.transform((query) => {
+		// A date-only "to" (YYYY-MM-DD) should include that whole day.
+		if (query.to) query.to = new Date(query.to.getTime() + 24 * 60 * 60 * 1000 - 1);
+		return query;
+	});
+
 const listActivityQuery = z.object({ ...pagination });
 const entityParams = z.object({ entityId: objectId });
 
@@ -256,6 +276,8 @@ module.exports = {
 	createMatchBody,
 	updateMatchBody,
 	resolveChangeRequestBody,
+	decisionBody,
+	listChangeRequestsQuery,
 	listActivityQuery,
 	entityParams,
 };

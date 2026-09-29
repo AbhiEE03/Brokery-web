@@ -40,4 +40,18 @@ const logActivity = (action, entity, getEntityId) => {
 	};
 };
 
+// Activity text for an approval-engine update response ({ applied, pending }).
+const describeUpdate = (entityType, label, data) => {
+	const name = label || entityType;
+	if (!data) return null;
+	const parts = [];
+	if (data.applied?.length) parts.push(`Updated ${entityType} ${name} (${data.applied.join(", ")})`);
+	if (data.pending) {
+		const fields = data.pending.changes.map((c) => c.field).join(", ");
+		parts.push(`${parts.length ? "requested" : `Requested approval for ${entityType} ${name}`}: ${fields}`);
+	}
+	return parts.length ? parts.join("; ") : null;
+};
+
 module.exports = logActivity;
+module.exports.describeUpdate = describeUpdate;

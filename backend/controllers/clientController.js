@@ -1,10 +1,7 @@
 const Client = require("../models/Client");
-const ClientChangeRequest = require("../models/ClientChangeRequest");
-const {
-	DIRECT_EDIT_FIELDS,
-	APPROVAL_REQUIRED_FIELDS,
-} = require("../utils/clientEditRules");
 const { toSkip, paginationMeta } = require("../utils/pagination");
+const { proposeChanges, describeProposal } = require("../services/approvalService");
+const { sendError } = require("../utils/httpError");
 const { escapeRegex } = require("../utils/regex");
 
 // Generate the next client code in the format CL-000001
@@ -17,28 +14,6 @@ const generateNextClientCode = async () => {
 
 	const currentNumber = parseInt(lastClient.clientCode.split("-")[1], 10);
 	return `CL-${String(currentNumber + 1).padStart(6, "0")}`;
-};
-
-const flattenPayload = (value, prefix = "") => {
-	const entries = [];
-
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		for (const [key, childValue] of Object.entries(value)) {
-			const nextKey = prefix ? `${prefix}.${key}` : key;
-
-			if (childValue && typeof childValue === "object" && !Array.isArray(childValue)) {
-				entries.push(...flattenPayload(childValue, nextKey));
-			} else {
-				entries.push([nextKey, childValue]);
-			}
-		}
-	}
-
-	return entries;
-};
-
-const getValueByPath = (source, path) => {
-	return path.split(".").reduce((current, key) => current?.[key], source);
 };
 
 // Create a new client and auto-generate a clientCode
@@ -125,70 +100,30 @@ exports.getClientById = async (req, res) => {
 	});
 };
 
-// Apply direct edits immediately and queue sensitive ones for admin approval
+// Direct fields apply now; sensitive fields become a change request (see services/approvalService.js)
 exports.updateClient = async (req, res) => {
 	try {
-		const flatFields = flattenPayload(req.body);
-		const directFields = {};
-		const sensitiveFields = {};
+		const result = await proposeChanges({
+			entityType: "client",
+			entityId: req.resource._id,
+			patch: req.body,
+			actor: req.user,
+		});
+		await result.entity.populate({ path: "assignedBroker", select: "name email" });
 
-		for (const [field, value] of flatFields) {
-			if (DIRECT_EDIT_FIELDS.includes(field)) {
-				directFields[field] = value;
-			} else if (APPROVAL_REQUIRED_FIELDS.includes(field)) {
-				sensitiveFields[field] = value;
-			}
-		}
-
-		if (
-			Object.keys(directFields).length === 0 &&
-			Object.keys(sensitiveFields).length === 0
-		) {
-			return res.status(400).json({
-				success: false,
-				message: "No supported client fields were provided",
-			});
-		}
-
-		let updatedClient = null;
-		let pendingChangeRequest = null;
-
-		if (Object.keys(directFields).length > 0) {
-			updatedClient = await Client.findByIdAndUpdate(
-				req.params.id,
-				{ $set: directFields },
-				{ new: true },
-			);
-		}
-
-		if (Object.keys(sensitiveFields).length > 0) {
-			const currentClient = await Client.findById(req.params.id).lean();
-			const changes = Object.entries(sensitiveFields).map(([field, newValue]) => ({
-				field,
-				oldValue: getValueByPath(currentClient, field),
-				newValue,
-			}));
-
-			pendingChangeRequest = await ClientChangeRequest.create({
-				client: req.params.id,
-				requestedBy: req.user._id,
-				changes,
-			});
-		}
-
-		res.status(200).json({
+		res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
 			success: true,
-			message: "Client update processed",
+			message: describeProposal(result),
 			data: {
-				updated: updatedClient,
-				pending: pendingChangeRequest,
+				updated: result.entity,
+				pending: result.pending,
+				applied: result.applied,
+				unchanged: result.unchanged,
+				superseded: result.superseded,
 			},
 		});
 	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+		sendError(res, error);
 	}
 };
 

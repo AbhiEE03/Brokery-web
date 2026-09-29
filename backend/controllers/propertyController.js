@@ -1,38 +1,9 @@
 const Property = require("../models/Property");
-const PropertyChangeRequest = require("../models/PropertyChangeRequest");
 const { generateNextCode } = require("../utils/codeGenerator");
-const {
-	DIRECT_EDIT_FIELDS,
-	APPROVAL_REQUIRED_FIELDS,
-} = require("../utils/propertyEditRules");
 const { toSkip, paginationMeta } = require("../utils/pagination");
+const { proposeChanges, describeProposal } = require("../services/approvalService");
+const { sendError } = require("../utils/httpError");
 const { escapeRegex } = require("../utils/regex");
-
-const flattenPayload = (value, prefix = "") => {
-	const entries = [];
-
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		for (const [key, childValue] of Object.entries(value)) {
-			const nextKey = prefix ? `${prefix}.${key}` : key;
-
-			if (
-				childValue &&
-				typeof childValue === "object" &&
-				!Array.isArray(childValue)
-			) {
-				entries.push(...flattenPayload(childValue, nextKey));
-			} else {
-				entries.push([nextKey, childValue]);
-			}
-		}
-	}
-
-	return entries;
-};
-
-const getValueByPath = (source, path) => {
-	return path.split(".").reduce((current, key) => current?.[key], source);
-};
 
 // Create a new property with auto-generated propertyCode
 exports.createProperty = async (req, res) => {
@@ -123,70 +94,30 @@ exports.getPropertyById = async (req, res) => {
 	});
 };
 
-// Apply direct property edits immediately and queue sensitive ones for admin approval
+// Direct fields apply now; sensitive fields become a change request (see services/approvalService.js)
 exports.updateProperty = async (req, res) => {
 	try {
-		const flatFields = flattenPayload(req.body);
-		const directFields = {};
-		const sensitiveFields = {};
+		const result = await proposeChanges({
+			entityType: "property",
+			entityId: req.resource._id,
+			patch: req.body,
+			actor: req.user,
+		});
+		await result.entity.populate({ path: "addedBy", select: "name email" });
 
-		for (const [field, value] of flatFields) {
-			if (DIRECT_EDIT_FIELDS.includes(field)) {
-				directFields[field] = value;
-			} else if (APPROVAL_REQUIRED_FIELDS.includes(field)) {
-				sensitiveFields[field] = value;
-			}
-		}
-
-		if (
-			Object.keys(directFields).length === 0 &&
-			Object.keys(sensitiveFields).length === 0
-		) {
-			return res.status(400).json({
-				success: false,
-				message: "No supported property fields were provided",
-			});
-		}
-
-		let updatedProperty = null;
-		let pendingChangeRequest = null;
-
-		if (Object.keys(directFields).length > 0) {
-			updatedProperty = await Property.findByIdAndUpdate(
-				req.params.id,
-				{ $set: directFields },
-				{ new: true },
-			);
-		}
-
-		if (Object.keys(sensitiveFields).length > 0) {
-			const currentProperty = await Property.findById(req.params.id).lean();
-			const changes = Object.entries(sensitiveFields).map(([field, newValue]) => ({
-				field,
-				oldValue: getValueByPath(currentProperty, field),
-				newValue,
-			}));
-
-			pendingChangeRequest = await PropertyChangeRequest.create({
-				property: req.params.id,
-				requestedBy: req.user._id,
-				changes,
-			});
-		}
-
-		res.status(200).json({
+		res.status(result.pending && result.applied.length === 0 ? 202 : 200).json({
 			success: true,
-			message: "Property update processed",
+			message: describeProposal(result),
 			data: {
-				updated: updatedProperty,
-				pending: pendingChangeRequest,
+				updated: result.entity,
+				pending: result.pending,
+				applied: result.applied,
+				unchanged: result.unchanged,
+				superseded: result.superseded,
 			},
 		});
 	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+		sendError(res, error);
 	}
 };
 

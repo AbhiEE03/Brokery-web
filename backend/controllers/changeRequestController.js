@@ -1,43 +1,51 @@
-const Client = require("../models/Client");
-const ClientChangeRequest = require("../models/ClientChangeRequest");
-const { sendChangeRequestResolved } = require("../utils/emailService");
+const ChangeRequest = require("../models/ChangeRequest");
+const {
+	resolveChangeRequest,
+	withdrawChangeRequest,
+} = require("../services/approvalService");
+const { toSkip, paginationMeta } = require("../utils/pagination");
+const { sendError } = require("../utils/httpError");
+const { isAdmin } = require("../policies");
 
-const getValueByPath = (source, path) => {
-	return path.split(".").reduce((current, key) => current?.[key], source);
-};
+const ENTITY_FIELDS = "name clientCode title propertyCode";
 
-const setValueByPath = (source, path, value) => {
-	const keys = path.split(".");
-	const lastKey = keys.pop();
-	const target = keys.reduce((current, key) => {
-		if (!current[key]) current[key] = {};
-		return current[key];
-	}, source);
-	target[lastKey] = value;
-	return source;
-};
+const populateRequest = (query) =>
+	query
+		.populate("entityId", ENTITY_FIELDS)
+		.populate("requestedBy", "name email")
+		.populate("resolvedBy", "name email");
 
 exports.getChangeRequests = async (req, res) => {
 	try {
-		const query = req.user.role === "broker"
-			? { requestedBy: req.user._id }
-			: {};
+		const { page, limit, status, entityType, from, to } = req.validated.query;
+		const filter = {};
 
-		const changeRequests = await ClientChangeRequest.find(query)
-			.sort({ createdAt: -1 })
-			.populate("client", "name clientCode")
-			.populate("requestedBy", "name email")
-			.lean();
+		if (!isAdmin(req.user)) filter.requestedBy = req.user._id;
+		if (status) filter.status = status;
+		if (entityType) filter.entityType = entityType;
+		if (from || to) {
+			filter.createdAt = {};
+			if (from) filter.createdAt.$gte = from;
+			if (to) filter.createdAt.$lte = to;
+		}
+
+		const [changeRequests, total] = await Promise.all([
+			populateRequest(
+				ChangeRequest.find(filter)
+					.sort({ createdAt: -1, _id: -1 })
+					.skip(toSkip({ page, limit }))
+					.limit(limit),
+			).lean(),
+			ChangeRequest.countDocuments(filter),
+		]);
 
 		res.status(200).json({
 			success: true,
 			data: changeRequests,
+			pagination: paginationMeta({ page, limit }, total),
 		});
 	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
-		});
+		sendError(res, error);
 	}
 };
 
@@ -49,71 +57,52 @@ exports.getChangeRequestById = async (req, res) => {
 	});
 };
 
-exports.resolveChangeRequest = async (req, res) => {
+const resolveWith = (getDecision) => async (req, res) => {
 	try {
-		const { action, adminNote } = req.body;
+		const changeRequest = await resolveChangeRequest({
+			id: req.params.id,
+			decision: getDecision(req),
+			actor: req.user,
+			adminNote: req.body?.adminNote,
+		});
+		await changeRequest.populate("entityId", ENTITY_FIELDS);
 
-		const changeRequest = await ClientChangeRequest.findById(req.params.id);
-
-		if (!changeRequest) {
-			return res.status(404).json({
+		if (changeRequest.status === "conflict") {
+			return res.status(409).json({
 				success: false,
-				message: "Change request not found",
+				code: "STALE_CHANGE_REQUEST",
+				message: `Not applied: ${changeRequest.conflictFields.join(", ")} changed after this request was made`,
+				data: changeRequest,
 			});
-		}
-
-		if (changeRequest.status !== "pending") {
-			return res.status(400).json({
-				success: false,
-				message: "This change request has already been resolved",
-			});
-		}
-
-		if (action === "approved") {
-			const client = await Client.findById(changeRequest.client);
-			if (client) {
-				for (const change of changeRequest.changes) {
-					setValueByPath(client, change.field, change.newValue);
-				}
-				client.updatedAt = Date.now();
-				await client.save();
-			}
-		}
-
-		changeRequest.status = action;
-		changeRequest.adminNote = adminNote || changeRequest.adminNote;
-		changeRequest.resolvedBy = req.user._id;
-		changeRequest.resolvedAt = Date.now();
-		await changeRequest.save();
-
-		try {
-			const requestedByUser = await changeRequest
-				.populate("requestedBy", "name email")
-				.then((doc) => doc.requestedBy);
-
-			if (requestedByUser?.email) {
-				await sendChangeRequestResolved({
-					toEmail: requestedByUser.email,
-					brokerName: requestedByUser.name,
-					entityType: "client",
-					action,
-					adminNote: changeRequest.adminNote,
-					changes: changeRequest.changes,
-				});
-			}
-		} catch (emailError) {
-			console.error("Change request email failed:", emailError.message);
 		}
 
 		res.status(200).json({
 			success: true,
-			message: `Change request ${action}`,
+			message: `Change request ${changeRequest.status}`,
 			data: changeRequest,
 		});
 	} catch (error) {
-		res.status(500).json({
-			success: false,
-			message: error.message,
+		sendError(res, error);
+	}
+};
+
+exports.approveChangeRequest = resolveWith(() => "approved");
+exports.rejectChangeRequest = resolveWith(() => "rejected");
+// Legacy endpoint: PATCH /:id/resolve { action: "approved" | "rejected" }
+exports.resolveChangeRequest = resolveWith((req) => req.body.action);
+
+exports.withdrawChangeRequest = async (req, res) => {
+	try {
+		const changeRequest = await withdrawChangeRequest({
+			id: req.params.id,
+			actor: req.user,
 		});
+		res.status(200).json({
+			success: true,
+			message: "Change request withdrawn",
+			data: changeRequest,
+		});
+	} catch (error) {
+		sendError(res, error);
 	}
 };

@@ -1,6 +1,6 @@
 const Client = require("../models/Client");
 const Property = require("../models/Property");
-const ClientChangeRequest = require("../models/ClientChangeRequest");
+const ChangeRequest = require("../models/ChangeRequest");
 
 exports.getSummary = async (req, res) => {
 	try {
@@ -22,7 +22,7 @@ exports.getSummary = async (req, res) => {
 						},
 					},
 				]),
-				ClientChangeRequest.countDocuments({ status: "pending" }),
+				ChangeRequest.countDocuments({ status: "pending" }),
 				Client.countDocuments(),
 			]);
 

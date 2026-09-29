@@ -14,6 +14,7 @@ const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
 const logActivity = require("../middleware/logActivity");
+const { describeUpdate } = logActivity;
 const {
 	createClientBody,
 	updateClientBody,
@@ -60,7 +61,7 @@ router.patch(
 	authorize("update"),
 	validate({ body: updateClientBody }),
 	logActivity(
-		(req, data) => `Updated client ${data?.data?.name || req.params.id}`,
+		(req, payload) => describeUpdate("client", req.resource?.name, payload?.data),
 		"client",
 		(req) => req.params.id,
 	),
