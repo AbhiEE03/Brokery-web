@@ -1,5 +1,7 @@
 # Brokery CRM
 
+[![CI](https://github.com/AbhiEE03/Brokery-web/actions/workflows/ci.yml/badge.svg)](https://github.com/AbhiEE03/Brokery-web/actions/workflows/ci.yml)
+
 A role-based CRM for small real-estate brokerages: brokers manage their clients and property inventory, and changes to money-affecting fields (deal stage, budgets, asking price) go through an admin approval step instead of applying silently.
 
 **Frontend:** https://brokery-ruddy.vercel.app  
@@ -75,6 +77,24 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173`, backend on `http://localhost:5000`.
+
+### Sandbox mode (no database setup needed)
+
+```bash
+cd backend
+npm run dev:sandbox
+```
+
+Starts the API on `http://localhost:5000` against a throwaway in-memory MongoDB replica set, seeded with demo data. Uploads go to `backend/.dev-uploads/` and emails are logged instead of sent. It never touches the database configured in `.env`.
+
+### Tests
+
+```bash
+cd backend && npm test    # Jest + Supertest against an in-memory MongoDB replica set
+cd frontend && npm test   # Vitest + React Testing Library
+```
+
+### Seeding a real database
 
 Seed a **development** database with demo data (wipes existing data; refuses to run with `NODE_ENV=production`):
 
