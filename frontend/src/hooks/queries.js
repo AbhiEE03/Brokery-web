@@ -64,6 +64,35 @@ export const useRecordHistory = (entityId, { limit = 10 } = {}) =>
 		enabled: Boolean(entityId),
 	});
 
+// ---- matching --------------------------------------------------------------
+
+export const useRecommendations = (clientId, k = 6) =>
+	useQuery({
+		queryKey: ["recommendations", clientId, k],
+		queryFn: async () => (await api.get(`/clients/${clientId}/recommendations`, { params: { k } })).data,
+		enabled: Boolean(clientId),
+	});
+
+export const useInterestedClients = (propertyId, k = 6) =>
+	useQuery({
+		queryKey: ["interestedClients", propertyId, k],
+		queryFn: async () => (await api.get(`/properties/${propertyId}/interested-clients`, { params: { k } })).data,
+		enabled: Boolean(propertyId),
+	});
+
+export const useRecommendationAction = (clientId) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ propertyId, action, rank, interestLevel }) =>
+			(await api.post(`/clients/${clientId}/recommendations/${propertyId}/${action}`, { rank, interestLevel })).data,
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["recommendations", clientId] });
+			queryClient.invalidateQueries({ queryKey: ["history", clientId] });
+			queryClient.invalidateQueries({ queryKey: ["matches"] });
+		},
+	});
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],

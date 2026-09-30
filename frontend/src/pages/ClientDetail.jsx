@@ -5,6 +5,7 @@ import { ArrowLeft, BadgeAlert, FileText, Save } from "lucide-react";
 import { getClientById, updateClient, uploadClientDocument } from "../api/clientApi";
 import { useEditPolicies } from "../hooks/queries";
 import RecordHistory from "../components/RecordHistory";
+import Recommendations from "../components/matching/Recommendations";
 import EditPreview from "../components/EditPreview";
 import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
 import { messageFrom } from "../utils/errors";
@@ -383,6 +384,8 @@ const ClientDetail = () => {
 								</div>
 							:	null}
 						</aside>
+
+						<Recommendations client={client} />
 
 						<RecordHistory entityId={id} />
 

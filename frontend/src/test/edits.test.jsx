@@ -13,6 +13,8 @@ import { getClientById, updateClient } from "../api/clientApi";
 
 const mutate = vi.fn();
 
+vi.mock("../hooks/useToast", () => ({ default: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
+
 vi.mock("../api/clientApi", () => ({
 	getClientById: vi.fn(),
 	updateClient: vi.fn(),
@@ -27,6 +29,8 @@ vi.mock("../hooks/queries", () => ({
 		},
 	}),
 	useRecordHistory: () => ({ isPending: false, isError: false, data: { data: [] } }),
+	useRecommendations: () => ({ isPending: false, isError: false, data: { data: [], meta: {} } }),
+	useRecommendationAction: () => ({ mutate: vi.fn(), isPending: false }),
 	useChangeRequests: () => ({
 		isPending: false,
 		isError: false,
