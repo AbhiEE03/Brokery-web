@@ -12,7 +12,9 @@
 		"migrate:status": "migrate-mongo status",
 		"migrate:up": "migrate-mongo up",
 		"migrate:down": "migrate-mongo down",
-		"bench": "node bench/run.js"
+		"bench": "node bench/run.js",
+		"match:export": "node scripts/exportLabelingSet.js",
+		"match:eval": "node scripts/evalMatching.js"
 	},
 	"keywords": [],
 	"author": "",
