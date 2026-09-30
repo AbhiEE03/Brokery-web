@@ -156,6 +156,21 @@ const clientCandidates = async (property, user) => {
 	return Client.find(filter).limit(config.maxCandidates).lean();
 };
 
+/**
+ * Would this property be offered to this client at all? The same rules as the
+ * candidate queries, for a single pair (used to judge a property's state before
+ * a change, which never went through a query).
+ */
+const isEligible = (client, property) => {
+	const r = client.requirements || {};
+	const price = property.pricing?.askingPrice;
+	if (property.status !== "available") return false;
+	if (!r.cityKey || r.cityKey !== property.location?.cityKey) return false;
+	if (r.propertyType && property.propertyType && r.propertyType !== property.propertyType) return false;
+	if (isNum(r.maxBudget) && isNum(price) && price > r.maxBudget * config.budgetStretch) return false;
+	return true;
+};
+
 const rank = (pairs, k) =>
 	topK(pairs, k).map((entry, index) => ({ ...entry, rank: index + 1 }));
 
@@ -178,5 +193,6 @@ module.exports = {
 	recommendProperties,
 	interestedClients,
 	clientCandidates,
+	isEligible,
 	ACTIVE_STAGES,
 };

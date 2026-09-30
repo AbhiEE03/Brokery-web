@@ -14,6 +14,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../store/authSlice";
 import useTheme from "../../hooks/useTheme";
+import AlertsBell from "./AlertsBell";
 
 const navItemBase =
 	"flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200";
@@ -36,7 +37,7 @@ const Sidebar = () => {
 	return (
 		<div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc,_#e2e8f0_55%,_#cbd5e1)] text-slate-950 dark:bg-slate-950 dark:text-slate-100">
 			<div className="mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4 lg:p-6">
-				<aside className="flex w-full flex-col rounded-3xl border border-white/70 bg-white/80 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900 dark:shadow-slate-950/60 xl:w-80 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
+				<aside className="relative z-30 flex w-full flex-col rounded-3xl border border-white/70 bg-white/80 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900 dark:shadow-slate-950/60 xl:w-80 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
 					{/* Brand header */}
 					<div className="flex items-center gap-3 rounded-2xl bg-slate-950 px-4 py-4 text-white shadow-lg shadow-slate-950/25 dark:bg-slate-800">
 						{/* Custom skyline SVG */}
@@ -80,7 +81,7 @@ const Sidebar = () => {
 						<div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
 							{initial}
 						</div>
-						<div className="min-w-0">
+						<div className="min-w-0 flex-1">
 							<p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
 								{user?.name || "Guest User"}
 							</p>
@@ -88,6 +89,7 @@ const Sidebar = () => {
 								{user?.role || "No role"}
 							</p>
 						</div>
+						<AlertsBell />
 					</div>
 
 					{/* Nav */}

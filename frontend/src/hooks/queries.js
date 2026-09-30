@@ -127,6 +127,26 @@ export const useShortlistMutations = (clientId) => {
 	};
 };
 
+// ---- alerts (bell) ------------------------------------------------------------
+
+export const useAlerts = () =>
+	useQuery({
+		queryKey: ["alerts"],
+		queryFn: async () => (await api.get("/alerts", { params: { limit: 20 } })).data,
+		refetchInterval: 60_000,
+		refetchOnWindowFocus: true,
+		staleTime: 15_000,
+	});
+
+export const useAlertActions = () => {
+	const queryClient = useQueryClient();
+	const refresh = () => queryClient.invalidateQueries({ queryKey: ["alerts"] });
+	return {
+		markRead: useMutation({ mutationFn: (id) => api.post(`/alerts/${id}/read`), onSettled: refresh }),
+		markAllRead: useMutation({ mutationFn: () => api.post("/alerts/read-all"), onSettled: refresh }),
+	};
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],

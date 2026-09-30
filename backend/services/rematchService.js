@@ -11,7 +11,7 @@
  */
 const OutboxEvent = require("../models/OutboxEvent");
 const Alert = require("../models/Alert");
-const { scoreMatch, clientCandidates } = require("./matchingService");
+const { scoreMatch, clientCandidates, isEligible } = require("./matchingService");
 const config = require("../config/matchingWeights");
 const { formatINR } = require("../utils/money");
 const logger = require("../config/logger");
@@ -84,12 +84,14 @@ const crossingClients = async (event) => {
 	if (after.status !== "available") return [];
 	const now = new Date(event.createdAt).getTime();
 	const candidates = await clientCandidates(after);
-	const wasRecommendable = before && before.status === "available";
 
+	// Before the change, a listing the client would never have been shown
+	// (sold, other city or type, >10% over budget) counts as score 0, however
+	// well it matched otherwise: becoming eligible is exactly what we alert on.
 	return candidates
 		.map((client) => ({
 			client,
-			before: wasRecommendable ? scoreMatch(client, before, { now }).score : 0,
+			before: before && isEligible(client, before) ? scoreMatch(client, before, { now }).score : 0,
 			after: scoreMatch(client, after, { now }).score,
 		}))
 		.filter(({ client, before: b, after: a }) => client.assignedBroker && b < config.alertThreshold && a >= config.alertThreshold);

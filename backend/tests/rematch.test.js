@@ -167,3 +167,17 @@ describe("alerts API", () => {
 		expect(res.body.outbox.oldestPendingSeconds).toBeGreaterThanOrEqual(1200);
 	});
 });
+
+test("a listing that was over budget but otherwise perfect alerts when its price comes into range", async () => {
+	const { client, edit } = await setup();
+	// 20% over budget: ineligible, even though locality/BHK/freshness alone score ~65%.
+	await edit({ pricing: { askingPrice: 12000000 } });
+	await rematch.dispatchEvents();
+	expect(await Alert.countDocuments()).toBe(0);
+
+	await edit({ pricing: { askingPrice: 9900000 } });
+	await rematch.dispatchEvents();
+	const alerts = await Alert.find({ client: client._id }).lean();
+	expect(alerts).toHaveLength(1);
+	expect(alerts[0].body).toMatch(/^Price dropped from ₹1.2 Cr to ₹99 L/);
+});

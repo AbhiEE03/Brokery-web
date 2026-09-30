@@ -154,3 +154,18 @@ describe("recommendations API", () => {
 		expect(all.body.data).toHaveLength(2);
 	});
 });
+
+describe("isEligible", () => {
+	const { isEligible } = require("../services/matchingService");
+	const client = { requirements: { cityKey: "pune", propertyType: "flat", maxBudget: 10000000 } };
+	const property = (overrides) => ({ status: "available", propertyType: "flat", location: { cityKey: "pune" }, pricing: { askingPrice: 9000000 }, ...overrides });
+
+	test("mirrors the candidate rules: status, city, type and the 10% budget stretch", () => {
+		expect(isEligible(client, property())).toBe(true);
+		expect(isEligible(client, property({ pricing: { askingPrice: 11000000 } }))).toBe(true);
+		expect(isEligible(client, property({ pricing: { askingPrice: 11000001 } }))).toBe(false);
+		expect(isEligible(client, property({ status: "sold" }))).toBe(false);
+		expect(isEligible(client, property({ location: { cityKey: "mumbai" } }))).toBe(false);
+		expect(isEligible(client, property({ propertyType: "villa" }))).toBe(false);
+	});
+});
