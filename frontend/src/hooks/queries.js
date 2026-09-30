@@ -147,6 +147,47 @@ export const useAlertActions = () => {
 	};
 };
 
+// ---- clients ---------------------------------------------------------------
+
+export const useClients = (params) =>
+	useQuery({
+		queryKey: ["clients", clean(params)],
+		queryFn: async () => (await api.get("/clients", { params: clean(params) })).data,
+		placeholderData: keepPreviousData,
+	});
+
+// Pending stage changes, so the board can show "awaiting approval" on cards.
+export const usePendingStageChanges = () =>
+	useQuery({
+		queryKey: ["changeRequests", { status: "pending", entityType: "client", limit: 100 }],
+		queryFn: () => getChangeRequests({ status: "pending", entityType: "client", limit: 100 }),
+		select: (response) =>
+			new Map(
+				(response.data || []).flatMap((cr) => {
+					const stage = cr.changes.find((c) => c.field === "pipelineStage");
+					return stage ? [[cr.entityId?._id ?? cr.entityId, stage.newValue]] : [];
+				}),
+			),
+	});
+
+export const useClientMutations = () => {
+	const queryClient = useQueryClient();
+	const refresh = () => {
+		queryClient.invalidateQueries({ queryKey: ["clients"] });
+		queryClient.invalidateQueries({ queryKey: ["changeRequests"] });
+	};
+	return {
+		create: useMutation({ mutationFn: async (payload) => (await api.post("/clients", payload)).data, onSettled: refresh }),
+		moveStage: useMutation({
+			mutationFn: async ({ id, stage }) => {
+				const response = await api.patch(`/clients/${id}`, { pipelineStage: stage });
+				return { status: response.status, ...response.data };
+			},
+			onSettled: refresh,
+		}),
+	};
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],
