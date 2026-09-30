@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
 	LayoutDashboard,
 	ListChecks,
@@ -9,12 +10,14 @@ import {
 	GitBranch,
 	History,
 	ShieldAlert,
+	Search,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../store/authSlice";
 import useTheme from "../../hooks/useTheme";
 import AlertsBell from "./AlertsBell";
+import CommandPalette from "./CommandPalette";
 
 const navItemBase =
 	"flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200";
@@ -31,6 +34,19 @@ const Sidebar = () => {
 	const user = useSelector((state) => state.auth.user);
 	const isAdmin = user?.role === "admin";
 	const { theme, toggleTheme } = useTheme();
+	const [paletteOpen, setPaletteOpen] = useState(false);
+
+	// Ctrl/Cmd+K opens search from anywhere.
+	useEffect(() => {
+		const onKey = (event) => {
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				setPaletteOpen((open) => !open);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, []);
 
 	const initial = (user?.name || "?").trim().charAt(0).toUpperCase();
 
@@ -91,6 +107,17 @@ const Sidebar = () => {
 						</div>
 						<AlertsBell />
 					</div>
+
+					<button
+						type="button"
+						onClick={() => setPaletteOpen(true)}
+						className="mt-4 flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-400 transition hover:border-slate-300 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-slate-300"
+					>
+						<Search size={16} />
+						<span className="flex-1 text-left">Search…</span>
+						<kbd className="rounded-md border border-slate-200 px-1.5 text-[10px] font-semibold dark:border-slate-600">Ctrl K</kbd>
+					</button>
+					<CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
 					{/* Nav */}
 					<nav className="mt-5 flex-1 space-y-1">
