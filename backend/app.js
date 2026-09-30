@@ -18,6 +18,7 @@ const ownershipRoutes = require("./routes/ownershipRoutes");
 const metaRoutes = require("./routes/metaRoutes");
 const { shortlistRouter, publicRouter } = require("./routes/shortlistRoutes");
 const alertRoutes = require("./routes/alertRoutes");
+const docsRoutes = require("./openapi/docsRoutes");
 const { createApiLimiter } = require("./middleware/rateLimit");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -105,6 +106,8 @@ const createApp = () => {
 	app.use("/api/shortlists", shortlistRouter);
 	app.use("/api/public", publicRouter);
 	app.use("/api/alerts", alertRoutes);
+	// OpenAPI spec and Swagger UI, generated from the same Zod schemas the routes validate with.
+	app.use("/api", docsRoutes);
 
 	app.use(notFoundHandler);
 	app.use(errorHandler);
