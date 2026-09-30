@@ -13,6 +13,7 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
+const { createShortlist, listShortlists } = require("../controllers/shortlistController");
 const {
 	getRecommendations,
 	linkRecommendation,
@@ -23,6 +24,7 @@ const {
 	recommendationParams,
 	linkRecommendationBody,
 	dismissRecommendationBody,
+	createShortlistBody,
 	createClientBody,
 	updateClientBody,
 	listClientsQuery,
@@ -62,6 +64,16 @@ router.post(
 	validate({ params: recommendationParams, body: linkRecommendationBody }),
 	linkRecommendation,
 );
+// Buyer shortlist links for this client.
+router.get("/:id/shortlists", loadClient, authorize("read"), listShortlists);
+router.post(
+	"/:id/shortlists",
+	loadClient,
+	authorize("link"),
+	validate({ body: createShortlistBody }),
+	createShortlist,
+);
+
 router.post(
 	"/:id/recommendations/:propertyId/dismiss",
 	loadClient,

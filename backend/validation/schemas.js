@@ -263,6 +263,17 @@ const dismissRecommendationBody = z
 	.optional()
 	.default({});
 
+const createShortlistBody = z.object({
+	propertyIds: z.array(objectId).min(1, "Pick at least one property").max(20, "At most 20 properties per link"),
+	expiresInDays: z.coerce.number().int().min(1).max(30).default(7),
+});
+
+const shortlistFeedbackBody = z.object({
+	propertyId: objectId,
+	reaction: z.enum(["like", "dislike", "visit"]),
+	comment: z.string().trim().max(500).optional(),
+});
+
 const listOwnershipClaimsQuery = z.object({
 	...pagination,
 	status: z.enum(["open", "upheld", "transferred"]).optional(),
@@ -300,7 +311,7 @@ const listActivityQuery = z
 		...pagination,
 		cursor,
 		entityType: z
-			.enum(["client", "property", "match", "change_request", "user", "ownership_claim"])
+			.enum(["client", "property", "match", "change_request", "user", "ownership_claim", "shortlist"])
 			.optional(),
 		action: z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Invalid action").optional(),
 		broker: objectId.optional(),
@@ -337,6 +348,8 @@ module.exports = {
 	listChangeRequestsQuery,
 	listActivityQuery,
 	listOwnershipClaimsQuery,
+	createShortlistBody,
+	shortlistFeedbackBody,
 	recommendationsQuery,
 	recommendationParams,
 	linkRecommendationBody,
