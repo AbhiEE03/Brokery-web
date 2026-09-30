@@ -53,7 +53,8 @@ const RecordHistory = ({ entityId }) => {
 								</span>
 								<p className="text-sm font-medium text-slate-900 dark:text-white">{entry.action}</p>
 								<p className="text-xs text-slate-500 dark:text-slate-400">
-									{entry.performedBy?.name || "System"} · {formatDateTime(entry.createdAt)} · #{entry.seq}
+									{entry.performedBy?.name || (entry.meta?.via === "buyer-link" ? "Buyer, via shortlist link" : "System")} ·{" "}
+									{formatDateTime(entry.createdAt)} · #{entry.seq}
 									{entry.legacy ? " · imported from the old activity log" : ""}
 								</p>
 								<Changes entry={entry} />

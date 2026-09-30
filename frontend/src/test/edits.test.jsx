@@ -31,6 +31,9 @@ vi.mock("../hooks/queries", () => ({
 	useRecordHistory: () => ({ isPending: false, isError: false, data: { data: [] } }),
 	useRecommendations: () => ({ isPending: false, isError: false, data: { data: [], meta: {} } }),
 	useRecommendationAction: () => ({ mutate: vi.fn(), isPending: false }),
+	useShortlists: () => ({ isPending: false, data: [] }),
+	useClientMatches: () => ({ isPending: false, data: [] }),
+	useShortlistMutations: () => ({ create: { mutate: vi.fn(), isPending: false }, revoke: { mutate: vi.fn() } }),
 	useChangeRequests: () => ({
 		isPending: false,
 		isError: false,

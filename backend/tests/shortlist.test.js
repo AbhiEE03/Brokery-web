@@ -166,3 +166,11 @@ describe("managing links", () => {
 		expect(list.body.data[0].properties[0]).toHaveProperty("title");
 	});
 });
+
+test("adding a note to the same reaction is recorded as a note, not a second 'liked'", async () => {
+	const { token, a } = await setup();
+	await react(token, { propertyId: a._id, reaction: "like" });
+	await react(token, { propertyId: a._id, reaction: "like", comment: "Saturday?" });
+	const titles = (await Alert.find().sort({ createdAt: 1 }).lean()).map((alert) => alert.title);
+	expect(titles).toEqual(["Bhaskar Bora liked 3BHK Flat in Beltola", "Bhaskar Bora added a note on 3BHK Flat in Beltola"]);
+});

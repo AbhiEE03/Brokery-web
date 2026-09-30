@@ -171,7 +171,12 @@ const recordFeedback = async ({ token, propertyId, reaction, comment }) => {
 			Client.findById(link.client).select("name assignedBroker").session(session).lean(),
 			Property.findById(propertyId).select("title propertyCode").session(session).lean(),
 		]);
-		const text = `${client.name} ${REACTION_TEXT[reaction]} ${property.title}`;
+		// Same reaction with a new note: say so, rather than repeating "liked".
+		const noteOnly = existing?.reaction === reaction;
+		const text =
+			noteOnly ?
+				`${client.name} added a note on ${property.title}`
+			:	`${client.name} ${REACTION_TEXT[reaction]} ${property.title}`;
 
 		await audit.record(
 			{

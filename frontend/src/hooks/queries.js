@@ -93,6 +93,40 @@ export const useRecommendationAction = (clientId) => {
 	});
 };
 
+// ---- shortlist links ---------------------------------------------------------
+
+export const useShortlists = (clientId) =>
+	useQuery({
+		queryKey: ["shortlists", clientId],
+		queryFn: async () => (await api.get(`/clients/${clientId}/shortlists`)).data.data,
+		enabled: Boolean(clientId),
+	});
+
+export const useClientMatches = (clientId) =>
+	useQuery({
+		queryKey: ["matches", "client", clientId],
+		queryFn: async () => (await api.get(`/matches/client/${clientId}`)).data.data,
+		enabled: Boolean(clientId),
+	});
+
+export const useShortlistMutations = (clientId) => {
+	const queryClient = useQueryClient();
+	const refresh = () => {
+		queryClient.invalidateQueries({ queryKey: ["shortlists", clientId] });
+		queryClient.invalidateQueries({ queryKey: ["history", clientId] });
+	};
+	return {
+		create: useMutation({
+			mutationFn: async (payload) => (await api.post(`/clients/${clientId}/shortlists`, payload)).data,
+			onSettled: refresh,
+		}),
+		revoke: useMutation({
+			mutationFn: async (linkId) => (await api.delete(`/shortlists/${linkId}`)).data,
+			onSettled: refresh,
+		}),
+	};
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],

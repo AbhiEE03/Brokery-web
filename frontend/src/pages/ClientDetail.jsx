@@ -6,6 +6,7 @@ import { getClientById, updateClient, uploadClientDocument } from "../api/client
 import { useEditPolicies } from "../hooks/queries";
 import RecordHistory from "../components/RecordHistory";
 import Recommendations from "../components/matching/Recommendations";
+import ShortlistPanel from "../components/shortlists/ShortlistPanel";
 import EditPreview from "../components/EditPreview";
 import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
 import { messageFrom } from "../utils/errors";
@@ -386,6 +387,8 @@ const ClientDetail = () => {
 						</aside>
 
 						<Recommendations client={client} />
+
+						<ShortlistPanel client={client} />
 
 						<RecordHistory entityId={id} />
 
