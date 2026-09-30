@@ -35,6 +35,7 @@ require("../models/RecommendationEvent");
 require("../models/ShortlistLink");
 require("../models/ShortlistFeedback");
 require("../models/Alert");
+require("../models/OutboxEvent");
 
 beforeAll(async () => {
 	await mongoose.connect(process.env.MONGO_URL_TEST, {

@@ -1,5 +1,6 @@
 const logger = require("../config/logger");
 const { dispatchPending, reclaimStuck } = require("../services/notificationService");
+const { dispatchEvents, reclaimStuckEvents } = require("../services/rematchService");
 
 /**
  * In-process poller for the notification outbox. Runs in the API process
@@ -16,8 +17,10 @@ const createOutboxWorker = ({ intervalMs = 15000 } = {}) => {
 		running = (async () => {
 			try {
 				await reclaimStuck();
+				await reclaimStuckEvents();
 				const processed = await dispatchPending();
-				if (processed) logger.info({ processed }, "Outbox dispatched");
+				const events = await dispatchEvents();
+				if (processed || events) logger.info({ processed, events }, "Outbox dispatched");
 			} catch (error) {
 				logger.error({ err: error }, "Outbox tick failed");
 			} finally {

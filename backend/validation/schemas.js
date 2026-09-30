@@ -274,6 +274,14 @@ const shortlistFeedbackBody = z.object({
 	comment: z.string().trim().max(500).optional(),
 });
 
+const listAlertsQuery = z.object({
+	unread: z
+		.enum(["0", "1", "true", "false"])
+		.optional()
+		.transform((value) => value === "1" || value === "true"),
+	limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 const listOwnershipClaimsQuery = z.object({
 	...pagination,
 	status: z.enum(["open", "upheld", "transferred"]).optional(),
@@ -348,6 +356,7 @@ module.exports = {
 	listChangeRequestsQuery,
 	listActivityQuery,
 	listOwnershipClaimsQuery,
+	listAlertsQuery,
 	createShortlistBody,
 	shortlistFeedbackBody,
 	recommendationsQuery,
