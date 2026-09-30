@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getPropertyById, updateProperty, uploadPropertyImage } from "../api/propertyApi";
 import { useEditPolicies } from "../hooks/queries";
 import RecordHistory from "../components/RecordHistory";
+import InterestedClients from "../components/matching/InterestedClients";
 import EditPreview from "../components/EditPreview";
 import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
 import { messageFrom } from "../utils/errors";
@@ -295,6 +296,8 @@ const PropertyDetail = () => {
 								</div>
 							:	null}
 						</aside>
+
+						<InterestedClients propertyId={id} />
 
 						<RecordHistory entityId={id} />
 

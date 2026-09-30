@@ -32,4 +32,24 @@ const createLoginLimiter = () =>
 		handler: limitedResponse("Too many login attempts. Try again in a minute."),
 	});
 
-module.exports = { createApiLimiter, createLoginLimiter };
+// Public shortlist pages: per IP, and per link so one leaked URL can't be hammered
+// from many addresses.
+const createPublicLimiters = () => [
+	rateLimit({
+		windowMs: 60 * 1000,
+		limit: Number(process.env.PUBLIC_RATE_LIMIT_PER_MINUTE) || 60,
+		standardHeaders: "draft-8",
+		legacyHeaders: false,
+		handler: limitedResponse("Too many requests, please slow down."),
+	}),
+	rateLimit({
+		windowMs: 60 * 1000,
+		limit: Number(process.env.PUBLIC_LINK_RATE_LIMIT_PER_MINUTE) || 120,
+		standardHeaders: "draft-8",
+		legacyHeaders: false,
+		keyGenerator: (req) => `link:${String(req.params.token || "").slice(0, 64)}`,
+		handler: limitedResponse("Too many requests for this link, please slow down."),
+	}),
+];
+
+module.exports = { createApiLimiter, createLoginLimiter, createPublicLimiters };

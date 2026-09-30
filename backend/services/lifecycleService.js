@@ -11,6 +11,7 @@ const StageTransition = require("../models/StageTransition");
 const { nextClientCode, nextPropertyCode } = require("../utils/codeGenerator");
 const audit = require("./auditService");
 const ownership = require("./ownershipService");
+const rematch = require("./rematchService");
 const { normalizeIndianMobile } = require("../utils/phone");
 
 // Fields captured in the audit entry when a record is created.
@@ -95,7 +96,10 @@ const createProperty = async ({ data, actor }) => {
 			},
 			{ session },
 		);
+		// New listing: clients it suits get a re-match alert (processed after commit).
+		await rematch.emitPropertyChanged({ before: null, after: property, changedFields: [], session });
 	});
+	rematch.processSoon();
 	return property;
 };
 

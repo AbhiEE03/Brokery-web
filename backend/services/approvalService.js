@@ -26,6 +26,7 @@ const { HttpError } = require("../utils/httpError");
 const { isAdmin, sameId } = require("../policies");
 const { dispatchSoon } = require("./notificationService");
 const audit = require("./auditService");
+const rematch = require("./rematchService");
 
 const registry = {
 	client: { Model: Client, rules: clientRules },
@@ -210,9 +211,18 @@ const proposeChanges = async ({ entityType, entityId, patch, actor, session: out
 
 		if (directChanges.length) {
 			await validateReferences(directChanges, session);
+			const before = entityType === "property" ? rematch.matchingSnapshot(entity) : null;
 			applyChanges(entity, directChanges);
 			entity.revision += 1;
 			await entity.save({ session });
+			if (before) {
+				await rematch.emitPropertyChanged({
+					before,
+					after: entity,
+					changedFields: directChanges.map((c) => c.field),
+					session,
+				});
+			}
 			await recordStageTransitions({
 				entityType,
 				entity,
@@ -261,6 +271,7 @@ const proposeChanges = async ({ entityType, entityId, patch, actor, session: out
 		};
 	});
 
+	if (entityType === "property" && result.applied.length) rematch.processSoon();
 	return result;
 };
 
@@ -360,9 +371,18 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 				await cr.save({ session });
 			} else {
 				await validateReferences(cr.changes, session);
+				const before = cr.entityType === "property" ? rematch.matchingSnapshot(entity) : null;
 				applyChanges(entity, cr.changes);
 				entity.revision += 1;
 				await entity.save({ session }); // schema validation failure aborts everything
+				if (before) {
+					await rematch.emitPropertyChanged({
+						before,
+						after: entity,
+						changedFields: cr.changes.map((c) => c.field),
+						session,
+					});
+				}
 				await recordStageTransitions({
 					entityType: cr.entityType,
 					entity,
@@ -414,6 +434,7 @@ const resolveChangeRequest = async ({ id, decision, actor, adminNote }) => {
 	});
 
 	dispatchSoon();
+	rematch.processSoon();
 	return resolved;
 };
 

@@ -13,7 +13,18 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
+const { createShortlist, listShortlists } = require("../controllers/shortlistController");
 const {
+	getRecommendations,
+	linkRecommendation,
+	dismissRecommendation,
+} = require("../controllers/recommendationController");
+const {
+	recommendationsQuery,
+	recommendationParams,
+	linkRecommendationBody,
+	dismissRecommendationBody,
+	createShortlistBody,
 	createClientBody,
 	updateClientBody,
 	listClientsQuery,
@@ -37,6 +48,39 @@ router.get("/", validate({ query: listClientsQuery }), getClients);
 
 // Get client by ID
 router.get("/:id", loadClient, authorize("read"), getClientById);
+
+// Matching: best available properties for this client, with reasons.
+router.get(
+	"/:id/recommendations",
+	loadClient,
+	authorize("read"),
+	validate({ query: recommendationsQuery }),
+	getRecommendations,
+);
+router.post(
+	"/:id/recommendations/:propertyId/link",
+	loadClient,
+	authorize("link"),
+	validate({ params: recommendationParams, body: linkRecommendationBody }),
+	linkRecommendation,
+);
+// Buyer shortlist links for this client.
+router.get("/:id/shortlists", loadClient, authorize("read"), listShortlists);
+router.post(
+	"/:id/shortlists",
+	loadClient,
+	authorize("link"),
+	validate({ body: createShortlistBody }),
+	createShortlist,
+);
+
+router.post(
+	"/:id/recommendations/:propertyId/dismiss",
+	loadClient,
+	authorize("link"),
+	validate({ params: recommendationParams, body: dismissRecommendationBody }),
+	dismissRecommendation,
+);
 
 // Upload client document — authorization runs before the file is stored
 router.post(

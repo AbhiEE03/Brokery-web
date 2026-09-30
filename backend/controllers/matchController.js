@@ -5,8 +5,9 @@ const Property = require("../models/Property");
 const { can, isAdmin } = require("../policies");
 const { toSkip, paginationMeta } = require("../utils/pagination");
 const audit = require("../services/auditService");
+const { createMatch: createMatchService, matchLabel: labelFor } = require("../services/matchService");
 
-const matchLabel = (clientName, propertyTitle) => `${clientName || "client"} ↔ ${propertyTitle || "property"}`;
+const matchLabel = (clientName, propertyTitle) => labelFor({ name: clientName }, { title: propertyTitle });
 
 const CLIENT_FIELDS = "name clientCode phone email assignedBroker";
 const PROPERTY_FIELDS = "title propertyCode location pricing status";
@@ -64,32 +65,12 @@ exports.createMatch = async (req, res) => {
 		});
 	}
 
-	const existingMatch = await Match.exists({ client, property });
-	if (existingMatch) {
-		return res.status(409).json({
-			success: false,
-			message: "This client-property match already exists",
-		});
-	}
-
-	let match;
-	await mongoose.connection.transaction(async (session) => {
-		[match] = await Match.create(
-			[{ client, property, interestLevel, notes, createdBy: req.user._id }],
-			{ session },
-		);
-		await audit.record(
-			{
-				actor: req.user._id,
-				action: "match.create",
-				entityType: "match",
-				entityId: match._id,
-				subject: { type: "client", id: clientDoc._id },
-				summary: `Linked ${matchLabel(clientDoc.name, propertyDoc.title)} (${interestLevel} interest)`,
-				after: { client: clientDoc._id, property: propertyDoc._id, interestLevel, notes: notes ?? null },
-			},
-			{ session },
-		);
+	const match = await createMatchService({
+		client: clientDoc,
+		property: propertyDoc,
+		interestLevel,
+		notes,
+		actor: req.user,
 	});
 
 	res.status(201).json({

@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { createMatch, deleteMatch, getMatches, updateMatch } from "../api/matchApi";
 import useConfirmDialog from "../hooks/useConfirmDialog";
 import { messageFrom } from "../utils/errors";
+import { formatINR } from "../utils/format";
+import AsyncCombobox from "../components/ui/AsyncCombobox";
 import { getClients } from "../api/clientApi";
 import { getProperties } from "../api/propertyApi";
 
@@ -48,20 +50,24 @@ const Matches = () => {
 		propertyId: "",
 		interestLevel: "high",
 	});
-	const [clientOptions, setClientOptions] = useState([]);
 	const [busyId, setBusyId] = useState("");
 	const { confirm, dialog } = useConfirmDialog();
-	const [propertyOptions, setPropertyOptions] = useState([]);
+	const [pickedClient, setPickedClient] = useState(null);
+	const [pickedProperty, setPickedProperty] = useState(null);
 
-	// Fetch clients and properties for the New Match form dropdowns
-	useEffect(() => {
-		getClients({ limit: 100 })
-			.then((res) => setClientOptions(res.data || []))
-			.catch(() => {});
-		getProperties({ limit: 100 })
-			.then((res) => setPropertyOptions(res.data || []))
-			.catch(() => {});
-	}, []);
+	// Pickers search the API as you type: no cap on how many clients or properties exist.
+	const searchClients = async (text) =>
+		((await getClients({ search: text || undefined, limit: 8 })).data || []).map((c) => ({
+			value: c._id,
+			label: `${c.name} (${c.clientCode})`,
+			hint: [c.requirements?.locality || c.requirements?.city, c.pipelineStage?.replace("_", " ")].filter(Boolean).join(" · "),
+		}));
+	const searchProperties = async (text) =>
+		((await getProperties({ search: text || undefined, limit: 8 })).data || []).map((p) => ({
+			value: p._id,
+			label: `${p.title} (${p.propertyCode})`,
+			hint: [formatINR(p.pricing?.askingPrice), p.location?.locality || p.location?.city, p.status?.replace("_", " ")].filter(Boolean).join(" · "),
+		}));
 
 	useEffect(() => {
 		let isMounted = true;
@@ -110,6 +116,8 @@ const Matches = () => {
 			});
 
 			setFormData({ clientId: "", propertyId: "", interestLevel: "high" });
+			setPickedClient(null);
+			setPickedProperty(null);
 			setFormOpen(false);
 
 			setPagination((current) => ({ ...current, page: 1 }));
@@ -185,49 +193,30 @@ const Matches = () => {
 						onSubmit={handleCreateMatch}
 						className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm sm:grid-cols-3"
 					>
-						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">Client</span>
-							<select
-								value={formData.clientId}
-								onChange={(event) =>
-									setFormData((current) => ({
-										...current,
-										clientId: event.target.value,
-									}))
-								}
-								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
-								required
-							>
-								<option value="">Select a client</option>
-								{clientOptions.map((c) => (
-									<option key={c._id} value={c._id}>
-										{c.name} {c.clientCode ? `(${c.clientCode})` : ""}
-									</option>
-								))}
-							</select>
-						</label>
-
-						<label className="block">
-							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">Property</span>
-							<select
-								value={formData.propertyId}
-								onChange={(event) =>
-									setFormData((current) => ({
-										...current,
-										propertyId: event.target.value,
-									}))
-								}
-								className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
-								required
-							>
-								<option value="">Select a property</option>
-								{propertyOptions.map((p) => (
-									<option key={p._id} value={p._id}>
-										{p.title} {p.propertyCode ? `(${p.propertyCode})` : ""}
-									</option>
-								))}
-							</select>
-						</label>
+						<AsyncCombobox
+							label="Client"
+							placeholder="Search your clients…"
+							queryKey="match-client-search"
+							search={searchClients}
+							value={pickedClient}
+							onChange={(option) => {
+								setPickedClient(option);
+								setFormData((current) => ({ ...current, clientId: option?.value || "" }));
+							}}
+							required
+						/>
+						<AsyncCombobox
+							label="Property"
+							placeholder="Search by title, locality or code…"
+							queryKey="match-property-search"
+							search={searchProperties}
+							value={pickedProperty}
+							onChange={(option) => {
+								setPickedProperty(option);
+								setFormData((current) => ({ ...current, propertyId: option?.value || "" }));
+							}}
+							required
+						/>
 
 						<label className="block">
 							<span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-400">Interest Level</span>

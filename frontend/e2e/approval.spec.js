@@ -40,11 +40,12 @@ test("a broker's budget change reaches the client only after an admin approves i
 	await expect(request).toBeVisible();
 	await request.getByRole("button", { name: "Approve" }).click();
 	await page.getByRole("dialog").getByRole("button", { name: "Approve" }).click();
-	await expect(page.getByText("Nothing waiting for review.")).toBeVisible();
+	// The approved request leaves the pending queue (other requests may still be there).
+	await expect(page.locator("li").filter({ hasText: "Max budget" })).toHaveCount(0);
 
 	// Broker: sees the approved value, and the change in the client's history.
 	await signIn(page, BROKER);
 	await page.goto(clientUrl);
 	await expect(page.locator('input[name="requirements.maxBudget"]')).toHaveValue(proposed);
-	await expect(page.getByText(/change request for client .* approved/i)).toBeVisible();
+	await expect(page.getByText(/change request for client .* approved/i).first()).toBeVisible();
 });

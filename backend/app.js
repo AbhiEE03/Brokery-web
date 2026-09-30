@@ -16,6 +16,9 @@ const activityRoutes = require("./routes/activityRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const ownershipRoutes = require("./routes/ownershipRoutes");
 const metaRoutes = require("./routes/metaRoutes");
+const { shortlistRouter, publicRouter } = require("./routes/shortlistRoutes");
+const alertRoutes = require("./routes/alertRoutes");
+const docsRoutes = require("./openapi/docsRoutes");
 const { createApiLimiter } = require("./middleware/rateLimit");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -76,7 +79,14 @@ const createApp = () => {
 		try {
 			if (mongoose.connection.readyState !== 1) throw new Error("not connected");
 			await mongoose.connection.db.admin().ping();
-			res.json({ status: "ready" });
+			// Reported, not enforced: a lagging worker shouldn't take the API out of
+			// rotation, but a growing number here means events aren't being processed.
+			const { oldestPendingAgeSeconds } = require("./services/rematchService");
+			const oldestPendingSeconds = await oldestPendingAgeSeconds();
+			res.json({
+				status: oldestPendingSeconds > 15 * 60 ? "degraded" : "ready",
+				outbox: { oldestPendingSeconds },
+			});
 		} catch (error) {
 			res.status(503).json({ status: "unavailable", reason: error.message });
 		}
@@ -93,6 +103,11 @@ const createApp = () => {
 	app.use("/api/analytics", analyticsRoutes);
 	app.use("/api/ownership-claims", ownershipRoutes);
 	app.use("/api/meta", metaRoutes);
+	app.use("/api/shortlists", shortlistRouter);
+	app.use("/api/public", publicRouter);
+	app.use("/api/alerts", alertRoutes);
+	// OpenAPI spec and Swagger UI, generated from the same Zod schemas the routes validate with.
+	app.use("/api", docsRoutes);
 
 	app.use(notFoundHandler);
 	app.use(errorHandler);

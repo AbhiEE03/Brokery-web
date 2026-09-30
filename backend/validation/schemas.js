@@ -246,6 +246,42 @@ const decisionBody = z.object({
 	adminNote: z.string().trim().max(500).optional(),
 });
 
+const recommendationsQuery = z.object({
+	k: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+const recommendationParams = z.object({ id: objectId, propertyId: objectId });
+
+const linkRecommendationBody = z.object({
+	interestLevel: z.enum(INTEREST_LEVELS).default("high"),
+	notes: z.string().trim().max(1000).optional(),
+	rank: z.number().int().min(1).max(50).optional(),
+});
+
+const dismissRecommendationBody = z
+	.object({ rank: z.number().int().min(1).max(50).optional() })
+	.optional()
+	.default({});
+
+const createShortlistBody = z.object({
+	propertyIds: z.array(objectId).min(1, "Pick at least one property").max(20, "At most 20 properties per link"),
+	expiresInDays: z.coerce.number().int().min(1).max(30).default(7),
+});
+
+const shortlistFeedbackBody = z.object({
+	propertyId: objectId,
+	reaction: z.enum(["like", "dislike", "visit"]),
+	comment: z.string().trim().max(500).optional(),
+});
+
+const listAlertsQuery = z.object({
+	unread: z
+		.enum(["0", "1", "true", "false"])
+		.optional()
+		.transform((value) => value === "1" || value === "true"),
+	limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 const listOwnershipClaimsQuery = z.object({
 	...pagination,
 	status: z.enum(["open", "upheld", "transferred"]).optional(),
@@ -283,7 +319,7 @@ const listActivityQuery = z
 		...pagination,
 		cursor,
 		entityType: z
-			.enum(["client", "property", "match", "change_request", "user", "ownership_claim"])
+			.enum(["client", "property", "match", "change_request", "user", "ownership_claim", "shortlist"])
 			.optional(),
 		action: z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Invalid action").optional(),
 		broker: objectId.optional(),
@@ -320,6 +356,13 @@ module.exports = {
 	listChangeRequestsQuery,
 	listActivityQuery,
 	listOwnershipClaimsQuery,
+	listAlertsQuery,
+	createShortlistBody,
+	shortlistFeedbackBody,
+	recommendationsQuery,
+	recommendationParams,
+	linkRecommendationBody,
+	dismissRecommendationBody,
 	resolveOwnershipClaimBody,
 	listMatchesQuery,
 	entityParams,

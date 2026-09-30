@@ -64,6 +64,130 @@ export const useRecordHistory = (entityId, { limit = 10 } = {}) =>
 		enabled: Boolean(entityId),
 	});
 
+// ---- matching --------------------------------------------------------------
+
+export const useRecommendations = (clientId, k = 6) =>
+	useQuery({
+		queryKey: ["recommendations", clientId, k],
+		queryFn: async () => (await api.get(`/clients/${clientId}/recommendations`, { params: { k } })).data,
+		enabled: Boolean(clientId),
+	});
+
+export const useInterestedClients = (propertyId, k = 6) =>
+	useQuery({
+		queryKey: ["interestedClients", propertyId, k],
+		queryFn: async () => (await api.get(`/properties/${propertyId}/interested-clients`, { params: { k } })).data,
+		enabled: Boolean(propertyId),
+	});
+
+export const useRecommendationAction = (clientId) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ propertyId, action, rank, interestLevel }) =>
+			(await api.post(`/clients/${clientId}/recommendations/${propertyId}/${action}`, { rank, interestLevel })).data,
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["recommendations", clientId] });
+			queryClient.invalidateQueries({ queryKey: ["history", clientId] });
+			queryClient.invalidateQueries({ queryKey: ["matches"] });
+		},
+	});
+};
+
+// ---- shortlist links ---------------------------------------------------------
+
+export const useShortlists = (clientId) =>
+	useQuery({
+		queryKey: ["shortlists", clientId],
+		queryFn: async () => (await api.get(`/clients/${clientId}/shortlists`)).data.data,
+		enabled: Boolean(clientId),
+	});
+
+export const useClientMatches = (clientId) =>
+	useQuery({
+		queryKey: ["matches", "client", clientId],
+		queryFn: async () => (await api.get(`/matches/client/${clientId}`)).data.data,
+		enabled: Boolean(clientId),
+	});
+
+export const useShortlistMutations = (clientId) => {
+	const queryClient = useQueryClient();
+	const refresh = () => {
+		queryClient.invalidateQueries({ queryKey: ["shortlists", clientId] });
+		queryClient.invalidateQueries({ queryKey: ["history", clientId] });
+	};
+	return {
+		create: useMutation({
+			mutationFn: async (payload) => (await api.post(`/clients/${clientId}/shortlists`, payload)).data,
+			onSettled: refresh,
+		}),
+		revoke: useMutation({
+			mutationFn: async (linkId) => (await api.delete(`/shortlists/${linkId}`)).data,
+			onSettled: refresh,
+		}),
+	};
+};
+
+// ---- alerts (bell) ------------------------------------------------------------
+
+export const useAlerts = () =>
+	useQuery({
+		queryKey: ["alerts"],
+		queryFn: async () => (await api.get("/alerts", { params: { limit: 20 } })).data,
+		refetchInterval: 60_000,
+		refetchOnWindowFocus: true,
+		staleTime: 15_000,
+	});
+
+export const useAlertActions = () => {
+	const queryClient = useQueryClient();
+	const refresh = () => queryClient.invalidateQueries({ queryKey: ["alerts"] });
+	return {
+		markRead: useMutation({ mutationFn: (id) => api.post(`/alerts/${id}/read`), onSettled: refresh }),
+		markAllRead: useMutation({ mutationFn: () => api.post("/alerts/read-all"), onSettled: refresh }),
+	};
+};
+
+// ---- clients ---------------------------------------------------------------
+
+export const useClients = (params) =>
+	useQuery({
+		queryKey: ["clients", clean(params)],
+		queryFn: async () => (await api.get("/clients", { params: clean(params) })).data,
+		placeholderData: keepPreviousData,
+	});
+
+// Pending stage changes, so the board can show "awaiting approval" on cards.
+export const usePendingStageChanges = () =>
+	useQuery({
+		queryKey: ["changeRequests", { status: "pending", entityType: "client", limit: 100 }],
+		queryFn: () => getChangeRequests({ status: "pending", entityType: "client", limit: 100 }),
+		select: (response) =>
+			new Map(
+				(response.data || []).flatMap((cr) => {
+					const stage = cr.changes.find((c) => c.field === "pipelineStage");
+					return stage ? [[cr.entityId?._id ?? cr.entityId, stage.newValue]] : [];
+				}),
+			),
+	});
+
+export const useClientMutations = () => {
+	const queryClient = useQueryClient();
+	const refresh = () => {
+		queryClient.invalidateQueries({ queryKey: ["clients"] });
+		queryClient.invalidateQueries({ queryKey: ["changeRequests"] });
+	};
+	return {
+		create: useMutation({ mutationFn: async (payload) => (await api.post("/clients", payload)).data, onSettled: refresh }),
+		moveStage: useMutation({
+			mutationFn: async ({ id, stage }) => {
+				const response = await api.patch(`/clients/${id}`, { pipelineStage: stage });
+				return { status: response.status, ...response.data };
+			},
+			onSettled: refresh,
+		}),
+	};
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],

@@ -13,11 +13,14 @@ import ActivityLog from "./pages/ActivityLog";
 import ChangeRequests from "./pages/ChangeRequests";
 import Matches from "./pages/Matches";
 import OwnershipClaims from "./pages/OwnershipClaims";
+import PublicShortlist from "./pages/PublicShortlist";
 
 function App() {
 	return (
 		<Routes>
 			<Route path="/login" element={<Login />} />
+			{/* Public: a buyer opens a shortlist link without an account. */}
+			<Route path="/s/:token" element={<PublicShortlist />} />
 
 			<Route element={<ProtectedRoute />}>
 				<Route element={<Sidebar />}>
