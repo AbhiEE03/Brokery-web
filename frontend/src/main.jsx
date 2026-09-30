@@ -7,6 +7,7 @@ import "./index.css";
 import App from "./App.jsx";
 import store from "./store/store";
 import ThemeProvider from "./theme/ThemeProvider";
+import ToastProvider from "./components/ui/ToastProvider";
 import queryClient from "./api/queryClient";
 
 createRoot(document.getElementById("root")).render(
@@ -15,7 +16,9 @@ createRoot(document.getElementById("root")).render(
 			<Provider store={store}>
 				<QueryClientProvider client={queryClient}>
 					<ThemeProvider>
-						<App />
+						<ToastProvider>
+							<App />
+						</ToastProvider>
 					</ThemeProvider>
 				</QueryClientProvider>
 			</Provider>
