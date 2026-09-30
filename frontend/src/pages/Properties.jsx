@@ -7,7 +7,7 @@ import { useProperties } from "../hooks/queries";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import Pagination from "../components/ui/Pagination";
 import { messageFrom } from "../utils/errors";
-import { formatINR } from "../utils/format";
+import PropertyCard from "../components/properties/PropertyCard";
 
 const PAGE_SIZE = 12;
 
@@ -81,11 +81,6 @@ const Properties = () => {
 		}
 	};
 
-	const statusBadgeClass = {
-		available: "bg-green-50 text-green-700",
-		under_negotiation: "bg-orange-50 text-orange-700",
-		sold: "bg-slate-100 text-slate-500",
-	};
 
 	return (
 		<section className="p-6 sm:p-8">
@@ -296,36 +291,7 @@ const Properties = () => {
 							No properties found.
 						</div>
 					:	properties.map((property) => (
-							<button
-								key={property._id}
-								type="button"
-								onClick={() => navigate(`/properties/${property._id}`)}
-								className="group rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
-							>
-								<div className="flex items-start justify-between gap-3">
-									<div>
-										<p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-											{property.propertyCode}
-										</p>
-										<h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
-											{property.title}
-										</h3>
-									</div>
-									<span
-										className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusBadgeClass[property.status] || "bg-slate-100 text-slate-600 dark:text-slate-400"}`}
-									>
-										{property.status?.replace("_", " ")}
-									</span>
-								</div>
-
-								<div className="mt-5 space-y-3 text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
-									<p>{property.location?.city || "Unknown city"}</p>
-									<p className="capitalize">{property.propertyType}</p>
-									<p className="font-semibold text-slate-900 dark:text-white">
-										{property.pricing?.askingPrice ? formatINR(property.pricing.askingPrice) : "Price unavailable"}
-									</p>
-								</div>
-							</button>
+							<PropertyCard key={property._id} property={property} onOpen={() => navigate(`/properties/${property._id}`)} />
 						))
 					}
 				</div>
