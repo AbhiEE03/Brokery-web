@@ -246,6 +246,23 @@ const decisionBody = z.object({
 	adminNote: z.string().trim().max(500).optional(),
 });
 
+const recommendationsQuery = z.object({
+	k: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+const recommendationParams = z.object({ id: objectId, propertyId: objectId });
+
+const linkRecommendationBody = z.object({
+	interestLevel: z.enum(INTEREST_LEVELS).default("high"),
+	notes: z.string().trim().max(1000).optional(),
+	rank: z.number().int().min(1).max(50).optional(),
+});
+
+const dismissRecommendationBody = z
+	.object({ rank: z.number().int().min(1).max(50).optional() })
+	.optional()
+	.default({});
+
 const listOwnershipClaimsQuery = z.object({
 	...pagination,
 	status: z.enum(["open", "upheld", "transferred"]).optional(),
@@ -320,6 +337,10 @@ module.exports = {
 	listChangeRequestsQuery,
 	listActivityQuery,
 	listOwnershipClaimsQuery,
+	recommendationsQuery,
+	recommendationParams,
+	linkRecommendationBody,
+	dismissRecommendationBody,
 	resolveOwnershipClaimBody,
 	listMatchesQuery,
 	entityParams,

@@ -13,7 +13,9 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadImage } = require("../middleware/uploadMiddleware");
+const { getInterestedClients } = require("../controllers/recommendationController");
 const {
+	recommendationsQuery,
 	createPropertyBody,
 	updatePropertyBody,
 	listPropertiesQuery,
@@ -37,6 +39,15 @@ router.get("/", validate({ query: listPropertiesQuery }), getProperties);
 
 // Get property by ID
 router.get("/:id", loadProperty, authorize("read"), getPropertyById);
+
+// Matching, reverse direction: active clients this property suits (brokers see their own).
+router.get(
+	"/:id/interested-clients",
+	loadProperty,
+	authorize("read"),
+	validate({ query: recommendationsQuery }),
+	getInterestedClients,
+);
 
 // Upload property image — authorization runs before the file is stored
 router.post(

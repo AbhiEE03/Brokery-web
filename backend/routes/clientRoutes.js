@@ -14,6 +14,15 @@ const { loadResource, authorize } = require("../middleware/resourceMiddleware");
 const { validate } = require("../middleware/validate");
 const { uploadDocument } = require("../middleware/uploadMiddleware");
 const {
+	getRecommendations,
+	linkRecommendation,
+	dismissRecommendation,
+} = require("../controllers/recommendationController");
+const {
+	recommendationsQuery,
+	recommendationParams,
+	linkRecommendationBody,
+	dismissRecommendationBody,
 	createClientBody,
 	updateClientBody,
 	listClientsQuery,
@@ -37,6 +46,29 @@ router.get("/", validate({ query: listClientsQuery }), getClients);
 
 // Get client by ID
 router.get("/:id", loadClient, authorize("read"), getClientById);
+
+// Matching: best available properties for this client, with reasons.
+router.get(
+	"/:id/recommendations",
+	loadClient,
+	authorize("read"),
+	validate({ query: recommendationsQuery }),
+	getRecommendations,
+);
+router.post(
+	"/:id/recommendations/:propertyId/link",
+	loadClient,
+	authorize("link"),
+	validate({ params: recommendationParams, body: linkRecommendationBody }),
+	linkRecommendation,
+);
+router.post(
+	"/:id/recommendations/:propertyId/dismiss",
+	loadClient,
+	authorize("link"),
+	validate({ params: recommendationParams, body: dismissRecommendationBody }),
+	dismissRecommendation,
+);
 
 // Upload client document — authorization runs before the file is stored
 router.post(
