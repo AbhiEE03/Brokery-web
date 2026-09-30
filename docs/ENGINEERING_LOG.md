@@ -147,3 +147,43 @@ Property search uses the text index for whole words and falls back to a substrin
   - the approval dialog flow
   - one theme toggle updates every consumer
 - One Playwright test runs the full approval flow in a browser against the sandbox API. It runs in CI, and locally with the installed Edge.
+
+---
+
+## 2026-09-30 — Matching, buyer shortlist links and re-match alerts
+
+**Problem:**
+- The app stored each client's budget, city, locality, size and bedrooms, then ignored them. Brokers matched clients to properties from memory.
+- Properties went to buyers as WhatsApp forwards, and nobody knew which ones the buyer liked.
+- When a listing's price dropped into a client's budget, nobody noticed.
+
+**What was built:** see [ADR 004](adr/004-matching-and-shortlists.md) and [ADR 005](adr/005-outbox-and-rematch.md).
+- **Matching:** candidates come from one indexed query; a weighted five-feature score comes with a reason per feature; a size-k heap picks the top-k. Dismissals and links are recorded as feedback, and the same scorer runs in reverse ("interested clients"). An offline harness reports precision@5 and NDCG@10 against random and price-only baselines, using weights tuned on held-out clients. The export writes no names, phones or emails.
+- **Shortlist links:**
+  - 32-byte tokens, stored only as SHA-256 hashes.
+  - Unknown, expired and revoked links all get the same 404.
+  - The public view is an allow-list of fields.
+  - Rate limits apply per IP and per link.
+  - Feedback is idempotent per (link, property), updates the match, is audited, and alerts the broker.
+- **Re-match alerts:**
+  - A `PropertyChanged` outbox event is written in the same transaction as the change.
+  - The worker claims events atomically, retries with backoff and moves repeated failures to a dead-letter state.
+  - Alerts are upserted on a unique `(eventId, client)` key, so reprocessing is harmless.
+
+**Bugs found along the way:**
+- **Alerts missed on price drops.** The first version scored the listing's *before* state as-is. A listing 20% over budget but otherwise perfect still scored about 0.65 on locality, bedrooms and freshness, so dropping its price into budget never "crossed" the 0.6 threshold and nobody was alerted. The fix: a before-state the client would never have been shown (not available, another city or type, >10% over budget) scores 0. A regression test pins it.
+- **Dropdown hidden behind the page.** The notification dropdown rendered under the main content, because the sidebar's `backdrop-blur` creates a stacking context. The browser test caught it (the click timed out); the fix was an explicit `z-index` on the sidebar.
+
+**Tests:**
+- 217 backend tests.
+- Shortlist security: the stored token never appears in the database, the allow-listed field set is checked, one 404 covers every invalid link, feedback is scoped to the link's own properties, and a per-link rate limit applies across different IPs.
+- Re-match: a price drop alerts exactly once, reprocessing is idempotent, a rolled-back change leaves no event, a crashed worker's event is reclaimed, and a failing event ends up dead after 5 attempts.
+
+## 2026-09-30 — Frontend patterns borrowed from tools people already use
+
+- **Pipeline board (Pipedrive):** drag-and-drop between stages, with a "Move to" menu on each card for keyboard users. Brokers' moves become change requests and show "awaiting approval" on the card.
+- **Command palette (Linear, Vercel):** Ctrl/Cmd+K searches clients, properties and pages, with arrow-key navigation.
+- **Property cards (99acres, Zillow):** photo first, then a large ₹ L/Cr price with ₹/sq ft, spec chips and a status ribbon.
+- **Buyer page:** mobile-first cards with three large reaction buttons.
+- **Also:** toasts, a notification bell with 60 s polling, and search-as-you-type pickers in place of dropdowns capped at 100 items.
+- **API docs:** an OpenAPI 3.1 spec is generated from the same Zod schemas the routes validate with, and a test fails if a documented path isn't a real route.
