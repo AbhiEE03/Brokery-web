@@ -208,3 +208,38 @@ Property search uses the text index for whole words and falls back to a substrin
 - It only looked safe because every audited transaction also writes the audit-chain counter. That accidentally serialized them.
 - **The fix:** an explicit `admin-roster` counter write inside each admin deactivation. With it: **0 out of 20**.
 - **Lesson:** a passing concurrency test should be checked against a version without the guard. Otherwise you can't tell whether it proves anything.
+
+---
+
+## 2026-10-03 — A public landing page that search engines and link previews can read
+
+**Problem.**
+- `/` redirected straight to the login page, so Google and recruiters saw nothing.
+- The app is a client-rendered SPA: `index.html` is an empty `<div id="root">`. Google renders JavaScript late and unreliably, and WhatsApp, LinkedIn and X previews never run it, so shared links showed a blank card.
+
+**What I built:**
+- **A landing page** using semantic sections, one `<h1>`, real `<a href>` links, screenshots with alt text and fixed dimensions, and a "Built & maintained by" credit.
+- **Build-time pre-render:**
+  - after `vite build`, a second `vite build --ssr` renders `/` in Node with `renderToString`, using the same provider tree as the browser, so `hydrateRoot` attaches without a mismatch
+  - `scripts/prerender.mjs` writes `index.html` (pre-rendered, indexable), `app.html` (empty shell, `noindex`) and `shortlist.html` (`noindex`, with its own WhatsApp preview)
+  - `vercel.json` serves real files first, then rewrites `/s/*` and everything else to the right shell
+- **Meta and crawl control:** title, description, canonical, Open Graph and Twitter tags with a 1200×630 JPEG (70 KB; WhatsApp ignores images over ~300 KB), JSON-LD `WebApplication` naming the author, `robots.txt` and `sitemap.xml`.
+
+**Measured** with Lighthouse on a production build, simulated mobile:
+
+| | Performance | Accessibility | Best practices | SEO |
+|---|---:|---:|---:|---:|
+| First pass | 63 | 95 | 100 | 100 |
+| After fixes | 99 | 100 | 100 | 100 |
+
+**The fixes:**
+- **Code splitting:** `React.lazy` for every app screen took the main bundle from 895 KB to 301 KB. The dashboard's chart library (360 KB) now loads only for admins who open it.
+- **Images:** `srcset` with 800 px variants, so phones don't download 1600 px screenshots.
+- **Caching:** `Cache-Control: immutable` for content-hashed `/assets`.
+- **Contrast:** the green CTA's white text was 3.8:1 against the background, so it moved one shade darker.
+
+First contentful paint went from 5.7 s to 1.5 s, and layout shift is 0.
+
+**Gotchas:**
+- Pre-rendering requires the component tree to be free of browser globals while rendering. `ThemeProvider` read `window.matchMedia` outside a guard, which would have crashed the Node render.
+- Hydration only works if the server and the browser render the identical tree, including providers that add DOM, like the toast region. That's why both use a shared `Root.jsx`.
