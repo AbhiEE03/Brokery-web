@@ -14,6 +14,13 @@ const routes = [
 	{ method: "post", path: "/auth/register", tag: "Auth", auth: "admin", summary: "Create a user account (audited)", body: s.registerBody },
 	{ method: "get", path: "/auth/brokers", tag: "Auth", auth: "admin", summary: "List brokers" },
 
+	// ---- team (admin)
+	{ method: "get", path: "/users/brokers", tag: "Team", auth: "admin", summary: "Brokers with client counts; `includeInactive=1` to include deactivated ones", query: s.listBrokersQuery },
+	{ method: "post", path: "/users", tag: "Team", auth: "admin", summary: "Create a broker or admin; omit `password` to get a generated one, returned once", body: s.createUserBody },
+	{ method: "patch", path: "/users/{id}/status", tag: "Team", auth: "admin", summary: "Deactivate (signs them out immediately) or reactivate; not yourself, never the last admin", params: s.idParams, body: s.userStatusBody },
+	{ method: "post", path: "/users/{id}/reset-password", tag: "Team", auth: "admin", summary: "New temporary password (returned once); ends every existing session", params: s.idParams },
+	{ method: "post", path: "/users/{id}/reassign-clients", tag: "Team", auth: "admin", summary: "Move all of a broker's clients to an active broker in one audited transaction", params: s.idParams, body: s.reassignClientsBody },
+
 	// ---- clients
 	{ method: "get", path: "/clients", tag: "Clients", auth: "user", summary: "List clients (brokers: their own)", query: s.listClientsQuery },
 	{ method: "post", path: "/clients", tag: "Clients", auth: "user", summary: "Create a client; a phone number already registered by another broker returns 409 and opens an ownership claim", body: s.createClientBody },
