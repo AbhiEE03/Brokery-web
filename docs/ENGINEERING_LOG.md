@@ -187,3 +187,24 @@ Property search uses the text index for whole words and falls back to a substrin
 - **Buyer page:** mobile-first cards with three large reaction buttons.
 - **Also:** toasts, a notification bell with 60 s polling, and search-as-you-type pickers in place of dropdowns capped at 100 items.
 - **API docs:** an OpenAPI 3.1 spec is generated from the same Zod schemas the routes validate with, and a test fails if a documented path isn't a real route.
+
+---
+
+## 2026-10-03 — Team management, and the write skew the tests nearly missed
+
+**Problem.**
+- Adding a broker meant calling the API by hand.
+- Nobody could deactivate a broker who left, reset a password, or hand a departing broker's clients to someone else.
+
+**Fix:** see [ADR 006](adr/006-team-management.md).
+- **Team page:** add, deactivate, reactivate, reset password, and move clients.
+- **Session revocation:** each JWT carries `tokenVersion`, and a password reset bumps it, so old tokens get `401 SESSION_REVOKED`. Deactivation already took effect on the next request.
+- **Offboarding:** all of a broker's clients move in one transaction, through the approval engine, audited per client. A failure part-way through rolls everything back, and a test injects one to prove it.
+
+**The interesting bug: write skew.**
+- The rule "you can't deactivate the last active admin" is a check-then-act.
+- My first race test (two admins deactivating each other at the same moment) passed even without any guard, which made me suspicious.
+- With audit writes stubbed out, the unguarded version ended with **zero admins in 20 out of 20 rounds**. Each transaction read "2 active admins" and wrote a *different* user document, so snapshot isolation let both commit.
+- It only looked safe because every audited transaction also writes the audit-chain counter. That accidentally serialized them.
+- **The fix:** an explicit `admin-roster` counter write inside each admin deactivation. With it: **0 out of 20**.
+- **Lesson:** a passing concurrency test should be checked against a version without the guard. Otherwise you can't tell whether it proves anything.
