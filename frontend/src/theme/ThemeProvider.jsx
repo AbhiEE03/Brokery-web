@@ -10,6 +10,8 @@ const readInitialTheme = () => {
 	} catch {
 		// Storage can be unavailable (private mode); fall back to the OS preference.
 	}
+	// No window while pre-rendering in Node: default to light.
+	if (typeof window === "undefined") return "light";
 	return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
