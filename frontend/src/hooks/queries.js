@@ -188,6 +188,35 @@ export const useClientMutations = () => {
 	};
 };
 
+// ---- team (admin) ------------------------------------------------------------
+
+export const useTeam = (includeInactive) =>
+	useQuery({
+		queryKey: ["team", Boolean(includeInactive)],
+		queryFn: async () => (await api.get("/users/brokers", { params: includeInactive ? { includeInactive: 1 } : {} })).data.data,
+		placeholderData: keepPreviousData,
+	});
+
+export const useTeamMutations = () => {
+	const queryClient = useQueryClient();
+	const refresh = () => {
+		queryClient.invalidateQueries({ queryKey: ["team"] });
+		queryClient.invalidateQueries({ queryKey: ["clients"] });
+	};
+	return {
+		create: useMutation({ mutationFn: async (payload) => (await api.post("/users", payload)).data, onSettled: refresh }),
+		setStatus: useMutation({
+			mutationFn: async ({ id, isActive }) => (await api.patch(`/users/${id}/status`, { isActive })).data,
+			onSettled: refresh,
+		}),
+		resetPassword: useMutation({ mutationFn: async (id) => (await api.post(`/users/${id}/reset-password`)).data, onSettled: refresh }),
+		reassignClients: useMutation({
+			mutationFn: async ({ id, toBrokerId }) => (await api.post(`/users/${id}/reassign-clients`, { toBrokerId })).data,
+			onSettled: refresh,
+		}),
+	};
+};
+
 export const useEditPolicies = () =>
 	useQuery({
 		queryKey: ["editPolicies"],

@@ -14,6 +14,7 @@ import ChangeRequests from "./pages/ChangeRequests";
 import Matches from "./pages/Matches";
 import OwnershipClaims from "./pages/OwnershipClaims";
 import PublicShortlist from "./pages/PublicShortlist";
+import Team from "./pages/Team";
 
 function App() {
 	return (
@@ -36,6 +37,7 @@ function App() {
 						<Route path="/dashboard" element={<Dashboard />} />
 						<Route path="/activity-log" element={<ActivityLog />} />
 						<Route path="/ownership-claims" element={<OwnershipClaims />} />
+						<Route path="/team" element={<Team />} />
 					</Route>
 				</Route>
 			</Route>

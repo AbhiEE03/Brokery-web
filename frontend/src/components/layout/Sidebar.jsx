@@ -11,6 +11,7 @@ import {
 	History,
 	ShieldAlert,
 	Search,
+	UsersRound,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -143,6 +144,12 @@ const Sidebar = () => {
 							<ListChecks size={18} />
 							Change Requests
 						</NavLink>
+						{isAdmin ? (
+							<NavLink to="/team" className={navItemClassName}>
+								<UsersRound size={18} />
+								Team
+							</NavLink>
+						) : null}
 						{isAdmin ? (
 							<NavLink to="/ownership-claims" className={navItemClassName}>
 								<ShieldAlert size={18} />
