@@ -1,0 +1,13 @@
+{
+	"name": "Brokery CRM",
+	"short_name": "Brokery",
+	"description": "Real-estate CRM for brokerage teams",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#065f46",
+	"icons": [
+		{ "src": "/skyscraper-city-svgrepo-com.svg", "sizes": "any", "type": "image/svg+xml" },
+		{ "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+	]
+}

@@ -1,0 +1,16 @@
+# Only the public pages should be indexed. Everything else needs a login, and
+# /s/ links are private buyer shortlists (they also send noindex).
+User-agent: *
+Allow: /$
+Allow: /login
+Disallow: /s/
+Disallow: /clients
+Disallow: /properties
+Disallow: /matches
+Disallow: /change-requests
+Disallow: /dashboard
+Disallow: /activity-log
+Disallow: /ownership-claims
+Disallow: /team
+
+Sitemap: https://brokery-ruddy.vercel.app/sitemap.xml
