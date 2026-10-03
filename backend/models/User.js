@@ -27,6 +27,13 @@ const userSchema = new mongoose.Schema({
 		type: Boolean,
 		default: true,
 	},
+	// Included in every JWT as `tv`. Bumping it (on a password reset) makes all
+	// tokens issued before that moment invalid: server-side revocation for
+	// otherwise stateless tokens. Missing on old documents/tokens means 0.
+	tokenVersion: {
+		type: Number,
+		default: 0,
+	},
 }, { timestamps: true });
 
 userSchema.pre("save", async function () {
