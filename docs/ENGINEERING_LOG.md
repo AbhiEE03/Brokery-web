@@ -187,3 +187,59 @@ Property search uses the text index for whole words and falls back to a substrin
 - **Buyer page:** mobile-first cards with three large reaction buttons.
 - **Also:** toasts, a notification bell with 60 s polling, and search-as-you-type pickers in place of dropdowns capped at 100 items.
 - **API docs:** an OpenAPI 3.1 spec is generated from the same Zod schemas the routes validate with, and a test fails if a documented path isn't a real route.
+
+---
+
+## 2026-10-03 — Team management, and the write skew the tests nearly missed
+
+**Problem.**
+- Adding a broker meant calling the API by hand.
+- Nobody could deactivate a broker who left, reset a password, or hand a departing broker's clients to someone else.
+
+**Fix:** see [ADR 006](adr/006-team-management.md).
+- **Team page:** add, deactivate, reactivate, reset password, and move clients.
+- **Session revocation:** each JWT carries `tokenVersion`, and a password reset bumps it, so old tokens get `401 SESSION_REVOKED`. Deactivation already took effect on the next request.
+- **Offboarding:** all of a broker's clients move in one transaction, through the approval engine, audited per client. A failure part-way through rolls everything back, and a test injects one to prove it.
+
+**The interesting bug: write skew.**
+- The rule "you can't deactivate the last active admin" is a check-then-act.
+- My first race test (two admins deactivating each other at the same moment) passed even without any guard, which made me suspicious.
+- With audit writes stubbed out, the unguarded version ended with **zero admins in 20 out of 20 rounds**. Each transaction read "2 active admins" and wrote a *different* user document, so snapshot isolation let both commit.
+- It only looked safe because every audited transaction also writes the audit-chain counter. That accidentally serialized them.
+- **The fix:** an explicit `admin-roster` counter write inside each admin deactivation. With it: **0 out of 20**.
+- **Lesson:** a passing concurrency test should be checked against a version without the guard. Otherwise you can't tell whether it proves anything.
+
+---
+
+## 2026-10-03 — A public landing page that search engines and link previews can read
+
+**Problem.**
+- `/` redirected straight to the login page, so Google and recruiters saw nothing.
+- The app is a client-rendered SPA: `index.html` is an empty `<div id="root">`. Google renders JavaScript late and unreliably, and WhatsApp, LinkedIn and X previews never run it, so shared links showed a blank card.
+
+**What I built:**
+- **A landing page** using semantic sections, one `<h1>`, real `<a href>` links, screenshots with alt text and fixed dimensions, and a "Built & maintained by" credit.
+- **Build-time pre-render:**
+  - after `vite build`, a second `vite build --ssr` renders `/` in Node with `renderToString`, using the same provider tree as the browser, so `hydrateRoot` attaches without a mismatch
+  - `scripts/prerender.mjs` writes `index.html` (pre-rendered, indexable), `app.html` (empty shell, `noindex`) and `shortlist.html` (`noindex`, with its own WhatsApp preview)
+  - `vercel.json` serves real files first, then rewrites `/s/*` and everything else to the right shell
+- **Meta and crawl control:** title, description, canonical, Open Graph and Twitter tags with a 1200×630 JPEG (70 KB; WhatsApp ignores images over ~300 KB), JSON-LD `WebApplication` naming the author, `robots.txt` and `sitemap.xml`.
+
+**Measured** with Lighthouse on a production build, simulated mobile:
+
+| | Performance | Accessibility | Best practices | SEO |
+|---|---:|---:|---:|---:|
+| First pass | 63 | 95 | 100 | 100 |
+| After fixes | 99 | 100 | 100 | 100 |
+
+**The fixes:**
+- **Code splitting:** `React.lazy` for every app screen took the main bundle from 895 KB to 301 KB. The dashboard's chart library (360 KB) now loads only for admins who open it.
+- **Images:** `srcset` with 800 px variants, so phones don't download 1600 px screenshots.
+- **Caching:** `Cache-Control: immutable` for content-hashed `/assets`.
+- **Contrast:** the green CTA's white text was 3.8:1 against the background, so it moved one shade darker.
+
+First contentful paint went from 5.7 s to 1.5 s, and layout shift is 0.
+
+**Gotchas:**
+- Pre-rendering requires the component tree to be free of browser globals while rendering. `ThemeProvider` read `window.matchMedia` outside a guard, which would have crashed the Node render.
+- Hydration only works if the server and the browser render the identical tree, including providers that add DOM, like the toast region. That's why both use a shared `Root.jsx`.

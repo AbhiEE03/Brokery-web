@@ -16,6 +16,7 @@ const PAGES = [
 	{ label: "Matches", path: "/matches" },
 	{ label: "Change requests", path: "/change-requests" },
 	{ label: "Ownership claims", path: "/ownership-claims", admin: true },
+	{ label: "Team", path: "/team", admin: true },
 	{ label: "Activity log", path: "/activity-log", admin: true },
 ];
 

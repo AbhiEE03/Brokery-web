@@ -65,6 +65,27 @@ const registerBody = z.object({
 	role: z.enum(["admin", "broker"]).optional(),
 });
 
+// ---------- team ----------
+
+const listBrokersQuery = z.object({
+	includeInactive: z
+		.enum(["0", "1", "true", "false"])
+		.optional()
+		.transform((value) => value === "1" || value === "true"),
+});
+
+const createUserBody = z.object({
+	name: z.string().trim().min(1).max(100),
+	email: z.email().max(254).transform((value) => value.toLowerCase()),
+	// Leave out to have a strong one generated and shown once.
+	password: z.string().min(10, "Password must be at least 10 characters").max(200).optional(),
+	role: z.enum(["admin", "broker"]).default("broker"),
+});
+
+const userStatusBody = z.object({ isActive: z.boolean() });
+
+const reassignClientsBody = z.object({ toBrokerId: objectId });
+
 // ---------- clients ----------
 
 const requirementsCreate = z
@@ -343,6 +364,10 @@ module.exports = {
 	idParams,
 	loginBody,
 	registerBody,
+	listBrokersQuery,
+	createUserBody,
+	userStatusBody,
+	reassignClientsBody,
 	createClientBody,
 	updateClientBody,
 	listClientsQuery,

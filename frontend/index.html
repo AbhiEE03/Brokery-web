@@ -2,20 +2,62 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<link
-			rel="icon"
-			type="image/svg+xml"
-			href="/skyscraper-city-svgrepo-com.svg"
-		/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Brokery CRM</title>
+
+		<!-- Search results: title ≈ 60 chars, description ≈ 150 chars. -->
+		<title>Brokery: Real-Estate CRM for Brokerage Teams</title>
 		<meta
 			name="description"
-			content="Real estate CRM for brokers and admins — manage clients, properties, approvals, and analytics in one place."
+			content="Brokery is a CRM for real-estate brokerages: approvals, a tamper-evident audit log, explainable buyer matching and WhatsApp shortlists."
 		/>
+		<link rel="canonical" href="https://brokery-ruddy.vercel.app/" />
+		<meta name="robots" content="index, follow" />
+
+		<!-- Icons and mobile browser chrome. -->
+		<link rel="icon" type="image/svg+xml" href="/skyscraper-city-svgrepo-com.svg" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<meta name="theme-color" content="#065f46" />
+
+		<!-- Link previews (WhatsApp, LinkedIn, X). Image URLs must be absolute. -->
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Brokery" />
+		<meta property="og:url" content="https://brokery-ruddy.vercel.app/" />
+		<meta property="og:title" content="Brokery: the real-estate CRM that keeps every deal honest" />
+		<meta
+			property="og:description"
+			content="Approvals, a tamper-evident history, explainable matches and WhatsApp shortlists for brokerage teams."
+		/>
+		<meta property="og:image" content="https://brokery-ruddy.vercel.app/og-image.jpg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Brokery pipeline board with clients grouped by stage" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Brokery: the real-estate CRM that keeps every deal honest" />
+		<meta
+			name="twitter:description"
+			content="Approvals, a tamper-evident history, explainable matches and WhatsApp shortlists for brokerage teams."
+		/>
+		<meta name="twitter:image" content="https://brokery-ruddy.vercel.app/og-image.jpg" />
+
+		<!-- Structured data: tells search engines what this is and who made it. -->
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "Brokery",
+				"url": "https://brokery-ruddy.vercel.app/",
+				"applicationCategory": "BusinessApplication",
+				"operatingSystem": "Any (web browser)",
+				"description": "CRM for real-estate brokerages: approval workflow, tamper-evident audit log, explainable client-property matching and WhatsApp shortlist links.",
+				"image": "https://brokery-ruddy.vercel.app/og-image.jpg",
+				"offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+				"author": { "@type": "Person", "name": "Abhishek", "url": "https://portfolio-abhi-aayp.vercel.app/" }
+			}
+		</script>
 	</head>
 	<body>
-		<div id="root"></div>
+		<div id="root"><!--app-html--></div>
 		<script type="module" src="/src/main.jsx"></script>
 	</body>
 </html>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, Building2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { login } from "../api/authApi";
 import { setCredentials } from "../store/authSlice";
@@ -9,7 +9,12 @@ import { homePathFor } from "../auth/roles";
 const Login = () => {
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
-	const [formData, setFormData] = useState({ email: "", password: "" });
+	// "Try the live demo" on the landing page links here with ?demo=broker.
+	const [params] = useSearchParams();
+	const demo = params.get("demo") === "broker";
+	const [formData, setFormData] = useState(
+		demo ? { email: "shubham@brokery.com", password: "Broker@Shubham" } : { email: "", password: "" },
+	);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
@@ -126,6 +131,11 @@ const Login = () => {
 								</div>
 							</label>
 
+							{demo && !error ?
+								<div role="status" className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+									Demo broker account filled in. Press Sign in to explore.
+								</div>
+							:	null}
 							{notice && !error ?
 								<div role="status" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
 									{notice}

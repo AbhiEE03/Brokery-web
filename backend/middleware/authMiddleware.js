@@ -18,6 +18,11 @@ const verifyToken = async (req, res, next) => {
 			return next(new HttpError(401, "User not found or disabled", { code: "UNAUTHENTICATED" }));
 		}
 
+		// A password reset bumps tokenVersion: tokens issued before it stop working.
+		if ((decoded.tv ?? 0) !== (user.tokenVersion ?? 0)) {
+			return next(new HttpError(401, "Your session has ended. Please sign in again.", { code: "SESSION_REVOKED" }));
+		}
+
 		req.user = user;
 		next();
 	} catch {

@@ -17,7 +17,8 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 - **Buyer shortlist links:** a broker shares one expiring link on WhatsApp; the buyer reacts without an account; tokens are stored only as hashes, and the public view is allow-listed.
 - **Event-driven re-match alerts:** property changes and their events commit together (transactional outbox), and an idempotent worker alerts brokers when a change makes a listing fit one of their clients.
 - **Measured performance:** 6–10× list and report queries on 100k synthetic clients after adding query-driven indexes (see [Performance](#performance)).
-- **Tests and CI:** 217 backend tests against a real in-memory MongoDB replica set, 28 frontend tests and a browser end-to-end test, all run in CI on every pull request. API docs are generated from the same validators: [`/api/docs`](https://brokery-api.onrender.com/api/docs).
+- **Team management:** admins add, deactivate and offboard brokers. Deactivation and password resets revoke sessions immediately, through a token version in each JWT. A leaving broker's clients move to someone else in one audited transaction, and the system never ends up without an active admin, even with two admins acting at once.
+- **Tests and CI:** 229 backend tests against a real in-memory MongoDB replica set, 39 frontend tests and a browser end-to-end test, all run in CI on every pull request. API docs are generated from the same validators: [`/api/docs`](https://brokery-api.onrender.com/api/docs).
 
 ## Architecture
 
@@ -88,6 +89,19 @@ Every write that matters happens in **one transaction**: the change itself, its 
   - Each client and property shows its history from the audit log.
   - The approval queue has Pending / Conflicts / History tabs, with a side-by-side "requester saw → now → requested" view for conflicts.
   - Accessible confirmation dialogs; prices shown in ₹ lakh/crore.
+- **Team management** — an admin-only Team page (`/team`):
+  - Add a broker or admin. Leave the password blank to get a strong generated one, shown once.
+  - Reset a password. This bumps the user's `tokenVersion`, so every existing session ends at once.
+  - Deactivate (effective on the next request) or reactivate.
+  - Offboarding moves all of a broker's clients to another active broker in one audited transaction.
+  - You can't deactivate yourself or the last active admin. A shared roster write makes concurrent deactivations conflict, so write skew can't leave zero admins.
+
+  See [ADR 006](docs/adr/006-team-management.md).
+- **Public landing page & SEO** — the landing page is pre-rendered to static HTML at build time and hydrated by React, so search engines and link previews (WhatsApp, LinkedIn) see real content without running JavaScript.
+  - **Search and previews:** meta description, canonical URL, Open Graph and Twitter cards with a 1200×630 preview image, and JSON-LD structured data.
+  - **Crawl control:** `robots.txt` and `sitemap.xml`. App routes and buyer shortlist links are served from separate `noindex` shells.
+  - **Performance:** route-level code splitting (895 KB → 301 KB main bundle), responsive images and long-lived caching for hashed assets.
+  - **Lighthouse:** 99–100 on performance, accessibility, best practices and SEO (mobile and desktop, measured on a production build).
 - **Operational basics** — structured JSON logs with request IDs, consistent JSON error responses, Helmet security headers, per-IP API rate limits and per-account login throttling, `/healthz` and `/readyz` probes, env validation at boot, graceful shutdown.
 
 ## Performance
@@ -158,7 +172,7 @@ frontend/
   src/hooks/queries.js    React Query hooks per resource
   e2e/                    Playwright end-to-end test
 docs/
-  adr/                    design decisions (approval engine, soft delete & stage history, audit & ownership, matching & shortlists, outbox & re-match)
+  adr/                    design decisions (approval engine, soft delete & stage history, audit & ownership, matching & shortlists, outbox & re-match, team management)
   ENGINEERING_LOG.md      bugs found, how they were found, how they were fixed
 ```
 
@@ -169,6 +183,7 @@ docs/
 - [ADR 003 — Audit log and ownership protection](docs/adr/003-audit-log-and-ownership.md)
 - [ADR 004 — Matching and buyer shortlist links](docs/adr/004-matching-and-shortlists.md)
 - [ADR 005 — Transactional outbox and re-match alerts](docs/adr/005-outbox-and-rematch.md)
+- [ADR 006 — Team management: revoking sessions and offboarding](docs/adr/006-team-management.md)
 - [Engineering log](docs/ENGINEERING_LOG.md): the authorization holes, race conditions and UI bugs found, and how each was fixed and tested
 
 ---
@@ -209,8 +224,8 @@ Starts the API on `http://localhost:5000` against a throwaway in-memory MongoDB 
 ### Tests
 
 CI (GitHub Actions) runs three jobs on every pull request and every push to `main`:
-- **backend:** 217 Jest tests, including the authorization matrix, parallel-approval races, audit-chain tamper detection, simultaneous duplicate registrations, shortlist-link security and idempotent re-match alerts.
-- **frontend:** lint, 28 Vitest tests and a production build.
+- **backend:** 229 Jest tests, including the authorization matrix, parallel-approval races, audit-chain tamper detection, simultaneous duplicate registrations, shortlist-link security, idempotent re-match alerts, and session revocation plus the last-admin race.
+- **frontend:** lint, 39 Vitest tests and a production build.
 - **e2e:** a Playwright test of the core flow in a real browser.
 
 ```bash
