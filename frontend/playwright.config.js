@@ -6,7 +6,7 @@ import { defineConfig } from "@playwright/test";
  *
  * Locally:  PW_CHANNEL=msedge npx playwright test   (uses the installed Edge)
  * CI:       npx playwright install --with-deps chromium && npx playwright test
- */
+ */ 
 export default defineConfig({
 	testDir: "./e2e",
 	timeout: 60_000,

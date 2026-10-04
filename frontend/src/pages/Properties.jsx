@@ -51,7 +51,8 @@ const Properties = () => {
 	const properties = query.data?.data || [];
 	const pagination = query.data?.pagination || { page: 1, pages: 1 };
 	const loading = query.isPending;
-	const listError = query.isError ? messageFrom(query.error, "Failed to load properties.") : "";
+	const listError =
+		query.isError ? messageFrom(query.error, "Failed to load properties.") : "";
 
 	// Any filter change starts again from page 1.
 	const withReset = (setter) => (value) => {
@@ -80,7 +81,6 @@ const Properties = () => {
 			setCreating(false);
 		}
 	};
-
 
 	return (
 		<section className="p-6 sm:p-8">
@@ -291,14 +291,23 @@ const Properties = () => {
 							No properties found.
 						</div>
 					:	properties.map((property) => (
-							<PropertyCard key={property._id} property={property} onOpen={() => navigate(`/properties/${property._id}`)} />
+							<PropertyCard
+								key={property._id}
+								property={property}
+								onOpen={() => navigate(`/properties/${property._id}`)}
+							/>
 						))
 					}
 				</div>
 
 				{pagination.pages > 1 ?
 					<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
-						<Pagination page={pagination.page} pages={pagination.pages} total={pagination.total} onPageChange={setPage} />
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							onPageChange={setPage}
+						/>
 					</div>
 				:	null}
 			</div>
