@@ -257,7 +257,10 @@ const ActivityLog = () => {
 										</td>
 									</tr>
 								:	logs.map((log) => (
-										<tr key={log._id} className="transition hover:bg-slate-50 dark:hover:bg-slate-700/30">
+										<tr
+											key={log._id}
+											className="transition hover:bg-slate-50 dark:hover:bg-slate-700/30"
+										>
 											<td className="px-6 py-4">
 												<div className="flex items-center gap-3">
 													<div

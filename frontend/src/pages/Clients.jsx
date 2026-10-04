@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Kanban, List, Plus, Search } from "lucide-react";
-import { useClientMutations, useClients, usePendingStageChanges } from "../hooks/queries";
+import {
+	useClientMutations,
+	useClients,
+	usePendingStageChanges,
+} from "../hooks/queries";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import useToast from "../hooks/useToast";
 import Pagination from "../components/ui/Pagination";
@@ -41,7 +45,9 @@ const Clients = () => {
 
 	// The board shows every stage at once (up to 100 clients); the list pages 10 at a time.
 	const query = useClients(
-		view === "board" ? { search, limit: 100 } : { search, stage: stage || undefined, page, limit: 10 },
+		view === "board" ?
+			{ search, limit: 100 }
+		:	{ search, stage: stage || undefined, page, limit: 10 },
 	);
 	const pending = usePendingStageChanges();
 	const { create, moveStage } = useClientMutations();
@@ -63,9 +69,14 @@ const Clients = () => {
 			onSuccess: (response) => {
 				reset();
 				setFormOpen(false);
-				toast.success("Client added", { description: `${response.data.name} · ${response.data.clientCode}` });
+				toast.success("Client added", {
+					description: `${response.data.name} · ${response.data.clientCode}`,
+				});
 			},
-			onError: (error) => toast.error("Couldn't add the client", { description: messageFrom(error) }),
+			onError: (error) =>
+				toast.error("Couldn't add the client", {
+					description: messageFrom(error),
+				}),
 		});
 
 	const handleMove = (client, target) =>
@@ -74,9 +85,16 @@ const Clients = () => {
 			{
 				onSuccess: (response) =>
 					response.status === 202 ?
-						toast.info("Sent for approval", { description: `${client.name} → ${stageLabel(target)} once an admin approves.` })
-					:	toast.success(`Moved to ${stageLabel(target)}`, { description: client.name }),
-				onError: (error) => toast.error("Couldn't move the client", { description: messageFrom(error) }),
+						toast.info("Sent for approval", {
+							description: `${client.name} → ${stageLabel(target)} once an admin approves.`,
+						})
+					:	toast.success(`Moved to ${stageLabel(target)}`, {
+							description: client.name,
+						}),
+				onError: (error) =>
+					toast.error("Couldn't move the client", {
+						description: messageFrom(error),
+					}),
 			},
 		);
 
@@ -87,7 +105,9 @@ const Clients = () => {
 			aria-selected={view === key}
 			onClick={() => switchView(key)}
 			className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-				view === key ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400"
+				view === key ?
+					"bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
+				:	"text-slate-500 hover:text-slate-800 dark:text-slate-400"
 			}`}
 		>
 			<Icon size={15} /> {label}
@@ -99,15 +119,22 @@ const Clients = () => {
 			<div className="flex flex-col gap-6">
 				<header className="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-700 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Clients</h1>
+						<h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+							Clients
+						</h1>
 						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
 							{view === "board" ?
 								"Drag a client to another stage. For brokers, stage changes go to an admin for approval."
-							:	"Everyone you're working with. Open a client for matches, shortlists and history."}
+							:	"Everyone you're working with. Open a client for matches, shortlists and history."
+							}
 						</p>
 					</div>
 					<div className="flex items-center gap-3">
-						<div role="tablist" aria-label="View" className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+						<div
+							role="tablist"
+							aria-label="View"
+							className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
+						>
 							{tabButton("list", "List", List)}
 							{tabButton("board", "Board", Kanban)}
 						</div>
@@ -122,7 +149,11 @@ const Clients = () => {
 				</header>
 
 				{formOpen ?
-					<NewClientForm onSubmit={handleCreate} onCancel={() => setFormOpen(false)} submitting={create.isPending} />
+					<NewClientForm
+						onSubmit={handleCreate}
+						onCancel={() => setFormOpen(false)}
+						submitting={create.isPending}
+					/>
 				:	null}
 
 				<div className="flex flex-col gap-3 sm:flex-row">
@@ -160,7 +191,9 @@ const Clients = () => {
 					:	null}
 				</div>
 
-				{query.isError ? <ErrorState error={query.error} onRetry={query.refetch} /> : null}
+				{query.isError ?
+					<ErrorState error={query.error} onRetry={query.refetch} />
+				:	null}
 
 				{query.isPending ?
 					<LoadingState label="Loading clients..." />
@@ -173,7 +206,14 @@ const Clients = () => {
 						busyId={moveStage.isPending ? moveStage.variables?.id : null}
 					/>
 				: clients.length === 0 ?
-					<EmptyState title="No clients found" hint={search || stage ? "Try a different search or stage." : "Add your first client with “New client”."} />
+					<EmptyState
+						title="No clients found"
+						hint={
+							search || stage ?
+								"Try a different search or stage."
+							:	"Add your first client with “New client”."
+						}
+					/>
 				:	<div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
 						<div className="overflow-x-auto">
 							<table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -182,7 +222,9 @@ const Clients = () => {
 										<th className="px-6 py-3">Client</th>
 										<th className="px-6 py-3">Looking for</th>
 										<th className="px-6 py-3">Stage</th>
-										{isAdmin ? <th className="px-6 py-3">Broker</th> : null}
+										{isAdmin ?
+											<th className="px-6 py-3">Broker</th>
+										:	null}
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -194,26 +236,41 @@ const Clients = () => {
 												key={client._id}
 												tabIndex={0}
 												onClick={() => navigate(`/clients/${client._id}`)}
-												onKeyDown={(event) => event.key === "Enter" && navigate(`/clients/${client._id}`)}
+												onKeyDown={(event) =>
+													event.key === "Enter" &&
+													navigate(`/clients/${client._id}`)
+												}
 												className="cursor-pointer transition hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:hover:bg-slate-700/30 dark:focus:bg-slate-700/30"
 											>
 												<td className="px-6 py-4">
-													<div className="font-medium text-slate-950 dark:text-white">{client.name}</div>
+													<div className="font-medium text-slate-950 dark:text-white">
+														{client.name}
+													</div>
 													<div className="text-xs text-slate-500 dark:text-slate-400">
 														{client.clientCode} · {client.phone}
 													</div>
 												</td>
 												<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
-													{[r.bedrooms ? `${r.bedrooms} BHK` : null, r.propertyType, r.locality || r.city].filter(Boolean).join(" · ") || "—"}
+													{[
+														r.bedrooms ? `${r.bedrooms} BHK` : null,
+														r.propertyType,
+														r.locality || r.city,
+													]
+														.filter(Boolean)
+														.join(" · ") || "—"}
 													{r.maxBudget ?
 														<div className="text-xs text-slate-500 dark:text-slate-400">
-															{r.minBudget ? `${formatINR(r.minBudget)}–` : "up to "}
+															{r.minBudget ?
+																`${formatINR(r.minBudget)}–`
+															:	"up to "}
 															{formatINR(r.maxBudget)}
 														</div>
 													:	null}
 												</td>
 												<td className="px-6 py-4 text-sm">
-													<span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STAGE_BY_KEY[client.pipelineStage]?.badge || ""}`}>
+													<span
+														className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STAGE_BY_KEY[client.pipelineStage]?.badge || ""}`}
+													>
 														{stageLabel(client.pipelineStage)}
 													</span>
 													{pendingStage ?
@@ -223,7 +280,9 @@ const Clients = () => {
 													:	null}
 												</td>
 												{isAdmin ?
-													<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{client.assignedBroker?.name || "Unassigned"}</td>
+													<td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+														{client.assignedBroker?.name || "Unassigned"}
+													</td>
 												:	null}
 											</tr>
 										);
@@ -231,7 +290,12 @@ const Clients = () => {
 								</tbody>
 							</table>
 						</div>
-						<Pagination page={pagination.page} pages={pagination.pages} total={pagination.total} onPageChange={setPage} />
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							onPageChange={setPage}
+						/>
 					</div>
 				}
 			</div>

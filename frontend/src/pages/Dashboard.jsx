@@ -105,8 +105,12 @@ const Dashboard = () => {
 				setPropertyByCity(
 					Array.isArray(cityResponse.data) ? cityResponse.data : [],
 				);
-				setFunnel(Array.isArray(funnelResponse.data) ? funnelResponse.data : []);
-				setTimeInStage(Array.isArray(timeResponse.data) ? timeResponse.data : []);
+				setFunnel(
+					Array.isArray(funnelResponse.data) ? funnelResponse.data : [],
+				);
+				setTimeInStage(
+					Array.isArray(timeResponse.data) ? timeResponse.data : [],
+				);
 			} catch (err) {
 				if (!isMounted) return;
 				setError(
@@ -336,14 +340,20 @@ const Dashboard = () => {
 							Clients reaching each stage
 						</h3>
 						<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							From stage-change history. Median days is how long clients stayed in a stage before moving on.
+							From stage-change history. Median days is how long clients stayed
+							in a stage before moving on.
 						</p>
 					</div>
 					{loading ?
-						<p className="text-sm text-slate-500 dark:text-slate-400">Loading funnel...</p>
+						<p className="text-sm text-slate-500 dark:text-slate-400">
+							Loading funnel...
+						</p>
 					:	<div className="flex flex-col gap-3">
 							{funnel.map((row) => (
-								<div key={row.stage} className="grid grid-cols-[7rem_1fr_9rem] items-center gap-4 text-sm">
+								<div
+									key={row.stage}
+									className="grid grid-cols-[7rem_1fr_9rem] items-center gap-4 text-sm"
+								>
 									<span className="font-medium text-slate-700 dark:text-slate-200">
 										{STAGE_LABELS[row.stage] || row.stage}
 									</span>
@@ -358,7 +368,9 @@ const Dashboard = () => {
 										</div>
 									</div>
 									<span className="text-xs text-slate-500 dark:text-slate-400">
-										{row.fromPrevious != null ? `${row.fromPrevious}% of previous` : "—"}
+										{row.fromPrevious != null ?
+											`${row.fromPrevious}% of previous`
+										:	"—"}
 										{medianDaysByStage[row.stage] != null ?
 											` · ${medianDaysByStage[row.stage]}d median`
 										:	""}
@@ -390,7 +402,12 @@ const Dashboard = () => {
 											<th className="px-4 py-3">Assigned</th>
 											<th className="px-4 py-3">Closed</th>
 											<th className="px-4 py-3">Lost</th>
-											<th className="px-4 py-3" title="Closed ÷ (closed + lost)">Conversion</th>
+											<th
+												className="px-4 py-3"
+												title="Closed ÷ (closed + lost)"
+											>
+												Conversion
+											</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
