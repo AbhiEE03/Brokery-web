@@ -352,7 +352,7 @@ const Dashboard = () => {
 							{funnel.map((row) => (
 								<div
 									key={row.stage}
-									className="grid grid-cols-[7rem_1fr_9rem] items-center gap-4 text-sm"
+									className="grid gap-1 text-sm lg:grid-cols-[7rem_1fr_9rem] lg:items-center lg:gap-4"
 								>
 									<span className="font-medium text-slate-700 dark:text-slate-200">
 										{STAGE_LABELS[row.stage] || row.stage}
