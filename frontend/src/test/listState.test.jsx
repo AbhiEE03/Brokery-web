@@ -105,6 +105,14 @@ describe("a page past the end is clamped, never an empty trap", () => {
 		expect(await screen.findByText(/Aditya/)).toBeInTheDocument();
 	});
 
+	test("properties: a stale page falls back to the last real page", async () => {
+		const row = { _id: "p1", title: "Baner 2BHK", propertyCode: "00AA", status: "available", propertyType: "flat", location: { city: "Pune" }, pricing: { askingPrice: 9500000 }, specs: {} };
+		vi.mocked(api.get).mockImplementation(async (url, { params }) => listOf(params.page > 2 ? [] : [row], { page: params.page, pages: 2, total: 14 }));
+		renderAt(<Properties />, "/properties?page=8");
+		await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("page=2"));
+		expect(await screen.findByText("Baner 2BHK")).toBeInTheDocument();
+	});
+
 	test("properties: filters and page come from the address", async () => {
 		vi.mocked(api.get).mockResolvedValue(listOf([], { page: 2, pages: 2, total: 14 }));
 		renderAt(<Properties />, "/properties?page=2&q=villa&type=flat");
