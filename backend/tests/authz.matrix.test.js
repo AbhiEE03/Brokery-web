@@ -86,6 +86,16 @@ const rows = [
 	// analytics & activity
 	["analytics is admin-only", "get", () => "/api/analytics/summary", "owner", 403],
 	["analytics for admin", "get", () => "/api/analytics/summary", "admin", 200],
+	// pipeline-distribution feeds the board's column headers, so brokers may read it (scoped to their own clients).
+	["pipeline distribution requires a token", "get", () => "/api/analytics/pipeline-distribution", "anon", 401],
+	["pipeline distribution for a broker", "get", () => "/api/analytics/pipeline-distribution", "owner", 200],
+	["pipeline distribution for admin", "get", () => "/api/analytics/pipeline-distribution", "admin", 200],
+	// ...and every other report is still admin-only.
+	["deals-by-month is admin-only", "get", () => "/api/analytics/deals-by-month", "owner", 403],
+	["broker-performance is admin-only", "get", () => "/api/analytics/broker-performance", "owner", 403],
+	["property-by-city is admin-only", "get", () => "/api/analytics/property-by-city", "owner", 403],
+	["funnel is admin-only", "get", () => "/api/analytics/funnel", "owner", 403],
+	["time-in-stage is admin-only", "get", () => "/api/analytics/time-in-stage", "owner", 403],
 	["activity requires a token", "get", () => "/api/activity", "anon", 401],
 ];
 
