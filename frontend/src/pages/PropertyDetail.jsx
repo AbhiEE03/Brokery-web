@@ -9,6 +9,7 @@ import InterestedClients from "../components/matching/InterestedClients";
 import EditPreview from "../components/EditPreview";
 import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
 import { messageFrom } from "../utils/errors";
+import { formatINR } from "../utils/format";
 
 const NUMERIC_FIELDS = new Set(["pricing.askingPrice"]);
 
@@ -210,7 +211,7 @@ const PropertyDetail = () => {
 									[
 										"Price",
 										property.pricing?.askingPrice ?
-											`INR ${Number(property.pricing.askingPrice).toLocaleString("en-IN")}`
+											formatINR(property.pricing.askingPrice)
 										:	"Not provided",
 									],
 									["Added By", property.addedBy?.name || "Unknown"],
@@ -274,6 +275,9 @@ const PropertyDetail = () => {
 													className={inputClass}
 												/>
 											}
+											{name === "pricing.askingPrice" && Number(value) > 0 ?
+												<span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">= {formatINR(value)}</span>
+											:	null}
 										</label>
 									);
 								})}

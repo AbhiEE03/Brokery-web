@@ -63,11 +63,11 @@ const Login = () => {
 					</p>
 
 					<p className="mt-8 text-sm text-slate-400">
-						Used by brokerage teams managing clients, listings, and deal approvals.
+						A portfolio project by Abhishek, running on demo data. Use the demo broker from the home page to look around.
 					</p>
 
 					<div className="mt-12 text-xs text-slate-500">
-						v1.0
+						Demo build
 					</div>
 				</section>
 

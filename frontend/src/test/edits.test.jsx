@@ -111,6 +111,19 @@ describe("client edit form", () => {
 			"/clients/c1",
 		);
 
+	test("budgets read as ₹ L/Cr on the profile and beside the rupee inputs", async () => {
+		renderDetail();
+		await screen.findByDisplayValue("9000000");
+		// Profile cards, not the raw 9000000 / 7500000.
+		expect(screen.getByText("₹90 L", { selector: "p" })).toBeInTheDocument();
+		expect(screen.getByText("₹75 L", { selector: "p" })).toBeInTheDocument();
+		// Live hint under the input while typing in rupees.
+		const maxBudget = screen.getByDisplayValue("9000000");
+		await userEvent.clear(maxBudget);
+		await userEvent.type(maxBudget, "12500000");
+		expect(screen.getByText("= ₹1.25 Cr")).toBeInTheDocument();
+	});
+
 	test("sends only the field the broker changed", async () => {
 		renderDetail();
 		const phone = await screen.findByDisplayValue("9000000125");
