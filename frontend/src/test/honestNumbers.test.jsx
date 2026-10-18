@@ -101,6 +101,78 @@ describe("pipeline board with more clients than one fetch holds", () => {
 		expect(header("Lead")).toHaveTextContent(/₹.*(Cr|L)/);
 	});
 
+	describe("when the per-stage totals can't be fetched", () => {
+		const forbidden = Object.assign(new Error("Forbidden"), { response: { status: 403, data: { message: "Forbidden" } } });
+		const offline = new Error("Network Error");
+		let distribution;
+
+		const serve = () =>
+			vi.mocked(api.get).mockImplementation(async (url, { params }) => {
+				if (url === "/analytics/pipeline-distribution") return distribution();
+				if (url === "/clients") {
+					const page = params.page ?? 1;
+					return { data: { success: true, data: page === 1 ? clientRows(1, 100) : clientRows(101, 75), pagination: { page, limit: 100, pages: 2, total: 175 } } };
+				}
+				return { data: { success: true, data: [], pagination: { page: 1, pages: 1, total: 0 } } };
+			});
+		const column = (name) => screen.getByRole("region", { name: `${name} column` });
+		const header = (name) => column(name).querySelector("header");
+		const OTHERS = ["Contacted", "Site visit", "Negotiation", "Closed", "Lost"];
+
+		test.each([
+			["a 403", forbidden],
+			["a network error", offline],
+		])("%s: the headers show a dash and a retry, never a believable 0", async (_, failure) => {
+			distribution = () => {
+				throw failure;
+			};
+			serve();
+			render(<Clients />, { wrapper });
+			await screen.findByText(/Showing 100 of 175/);
+			const alert = await screen.findByRole("alert");
+			expect(within(alert).getByRole("button", { name: /retry/i })).toBeInTheDocument();
+			for (const name of OTHERS) {
+				expect(header(name)).toHaveTextContent("—");
+				expect(header(name)).not.toHaveTextContent(/0/);
+				expect(within(column(name)).queryByText("Drop a client here")).toBeNull();
+			}
+			// Lead can't be trusted either: 100 loaded is not its total.
+			expect(header("Lead")).toHaveTextContent("—");
+			expect(header("Lead")).toHaveTextContent("showing 100");
+		});
+
+		test("Retry fetches the totals again and the headers recover", async () => {
+			let calls = 0;
+			distribution = () => {
+				calls += 1;
+				if (calls === 1) throw offline;
+				return { data: { success: true, data: [{ _id: "lead", count: 162 }, { _id: "contacted", count: 2 }, { _id: "closed", count: 6 }, { _id: "lost", count: 5 }] } };
+			};
+			serve();
+			render(<Clients />, { wrapper });
+			await userEvent.click(await within(await screen.findByRole("alert")).findByRole("button", { name: /retry/i }));
+			await waitFor(() => expect(header("Contacted")).toHaveTextContent("2"));
+			expect(header("Lead")).toHaveTextContent("162");
+			expect(header("Negotiation")).toHaveTextContent("0");
+			expect(screen.queryByRole("alert")).toBeNull();
+			expect(calls).toBe(2);
+		});
+
+		test("with every client loaded, the loaded counts are exact and no error is needed", async () => {
+			distribution = () => {
+				throw forbidden;
+			};
+			vi.mocked(api.get).mockImplementation(async (url) =>
+				url === "/analytics/pipeline-distribution" ? distribution() : { data: { success: true, data: url === "/clients" ? clientRows(1, 3) : [], pagination: { page: 1, limit: 100, pages: 1, total: url === "/clients" ? 3 : 0 } } },
+			);
+			render(<Clients />, { wrapper });
+			await screen.findAllByRole("article");
+			expect(header("Lead")).toHaveTextContent("3");
+			expect(header("Closed")).toHaveTextContent("0");
+			expect(screen.queryByRole("alert")).toBeNull();
+		});
+	});
+
 	test("stays quiet when everything fits", async () => {
 		vi.mocked(api.get).mockImplementation(async (url) => ({
 			data: { success: true, data: url === "/clients" ? clientRows(1, 3) : [], pagination: { page: 1, limit: 100, pages: 1, total: url === "/clients" ? 3 : 0 } },
