@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { getActivityLogs, getBrokers } from "../api/activityApi";
+import { Filter } from "lucide-react";
+import { useActivityLogs, useBrokerOptions } from "../hooks/queries";
+import useListState, { useClampedPage } from "../hooks/useListState";
+import Pagination from "../components/ui/Pagination";
+import { messageFrom } from "../utils/errors";
+
+const PAGE_SIZE = 10;
 
 const entityTypeOptions = [
 	"all",
@@ -10,6 +14,7 @@ const entityTypeOptions = [
 	"match",
 	"change_request",
 	"ownership_claim",
+	"shortlist",
 	"user",
 ];
 
@@ -76,84 +81,28 @@ const getEntityLabel = (entity) => {
 const ActivityLog = () => {
 	const user = useSelector((state) => state.auth.user);
 	const isAdmin = user?.role === "admin";
-	const [logs, setLogs] = useState([]);
-	const [pagination, setPagination] = useState({
-		page: 1,
-		limit: 10,
-		total: 0,
-		pages: 1,
+	// Filters and page live in the address bar (Back and refresh keep them).
+	const list = useListState({ entity: "all" });
+	const page = list.page;
+	const entityType = list.get("entity");
+	const broker = list.get("broker");
+	const startDate = list.get("from");
+	const endDate = list.get("to");
+
+	const brokers = useBrokerOptions(isAdmin).data || [];
+	const query = useActivityLogs({
+		page,
+		limit: PAGE_SIZE,
+		entityType: entityType === "all" ? undefined : entityType,
+		broker: isAdmin && broker ? broker : undefined,
+		from: startDate || undefined,
+		to: endDate || undefined,
 	});
-	const [entityType, setEntityType] = useState("all");
-	const [broker, setBroker] = useState("");
-	const [startDate, setStartDate] = useState("");
-	const [endDate, setEndDate] = useState("");
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [brokers, setBrokers] = useState([]);
-
-	// Fetch broker list once on mount (admin only)
-	useEffect(() => {
-		if (!isAdmin) return;
-		getBrokers()
-			.then((res) => setBrokers(res.data || []))
-			.catch(() => {}); // silent — non-critical
-	}, [isAdmin]);
-
-	const queryParams = useMemo(
-		() => ({
-			page: pagination.page,
-			limit: pagination.limit,
-			entityType: entityType === "all" ? undefined : entityType,
-			broker: isAdmin && broker ? broker : undefined,
-			from: startDate || undefined,
-			to: endDate || undefined,
-		}),
-		[
-			pagination.page,
-			pagination.limit,
-			entityType,
-			isAdmin,
-			broker,
-			startDate,
-			endDate,
-		],
-	);
-
-	useEffect(() => {
-		let isMounted = true;
-
-		const loadLogs = async () => {
-			setLoading(true);
-			setError("");
-
-			try {
-				const response = await getActivityLogs(queryParams);
-				if (!isMounted) return;
-				setLogs(response.data || []);
-				setPagination((current) => ({
-					...current,
-					...(response.pagination || {}),
-				}));
-			} catch (err) {
-				if (!isMounted) return;
-				setError(
-					err.response?.data?.message || "Failed to load activity logs.",
-				);
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-
-		loadLogs();
-
-		return () => {
-			isMounted = false;
-		};
-	}, [queryParams]);
-
-	useEffect(() => {
-		setPagination((current) => ({ ...current, page: 1 }));
-	}, [entityType, broker, startDate, endDate]);
+	const clamping = useClampedPage(query, page, list);
+	const logs = query.data?.data || [];
+	const pagination = query.data?.pagination || { page: 1, pages: 1, total: 0 };
+	const loading = query.isPending || clamping;
+	const error = query.isError ? messageFrom(query.error, "Failed to load activity logs.") : "";
 
 	return (
 		<section className="p-6 sm:p-8">
@@ -176,7 +125,7 @@ const ActivityLog = () => {
 				<div className="grid gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm lg:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr] lg:items-center lg:p-5">
 					<select
 						value={entityType}
-						onChange={(event) => setEntityType(event.target.value)}
+						onChange={(event) => list.set({ entity: event.target.value })}
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{entityTypeOptions.map((option) => (
@@ -190,7 +139,7 @@ const ActivityLog = () => {
 						<input
 							type="date"
 							value={startDate}
-							onChange={(event) => setStartDate(event.target.value)}
+							onChange={(event) => list.set({ from: event.target.value })}
 							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
@@ -199,7 +148,7 @@ const ActivityLog = () => {
 						<input
 							type="date"
 							value={endDate}
-							onChange={(event) => setEndDate(event.target.value)}
+							onChange={(event) => list.set({ to: event.target.value })}
 							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none"
 						/>
 					</label>
@@ -207,7 +156,7 @@ const ActivityLog = () => {
 					{isAdmin ?
 						<select
 							value={broker}
-							onChange={(event) => setBroker(event.target.value)}
+							onChange={(event) => list.set({ broker: event.target.value })}
 							className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400 xl:col-span-1"
 						>
 							<option value="">All brokers</option>
@@ -298,41 +247,15 @@ const ActivityLog = () => {
 						</table>
 					</div>
 
-					<div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-6 py-4">
-						<p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
-							Page {pagination.page} of {pagination.pages || 1}
-						</p>
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() =>
-									setPagination((current) => ({
-										...current,
-										page: Math.max(1, current.page - 1),
-									}))
-								}
-								disabled={pagination.page <= 1}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<ChevronLeft size={16} />
-								Prev
-							</button>
-							<button
-								type="button"
-								onClick={() =>
-									setPagination((current) => ({
-										...current,
-										page: Math.min(current.pages || 1, current.page + 1),
-									}))
-								}
-								disabled={pagination.page >= (pagination.pages || 1)}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								Next
-								<ChevronRight size={16} />
-							</button>
-						</div>
-					</div>
+					{logs.length > 0 ?
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
+						/>
+					:	null}
 				</div>
 			</div>
 		</section>

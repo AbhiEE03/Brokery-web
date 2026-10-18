@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { createMatch, deleteMatch, getMatches, updateMatch } from "../api/matchApi";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2 } from "lucide-react";
+import { createMatch, deleteMatch, updateMatch } from "../api/matchApi";
+import { useMatches } from "../hooks/queries";
+import useListState, { useClampedPage } from "../hooks/useListState";
+import Pagination from "../components/ui/Pagination";
 import useConfirmDialog from "../hooks/useConfirmDialog";
 import { messageFrom } from "../utils/errors";
 import { formatINR } from "../utils/format";
 import AsyncCombobox from "../components/ui/AsyncCombobox";
 import { getClients } from "../api/clientApi";
 import { getProperties } from "../api/propertyApi";
+
+const PAGE_SIZE = 10;
 
 const interestOptions = ["high", "medium", "low"];
 
@@ -33,16 +39,17 @@ const getInterestTone = (value) => {
 const getStatusTone = () => "bg-emerald-50 text-emerald-700";
 
 const Matches = () => {
-	const [matches, setMatches] = useState([]);
-	const [pagination, setPagination] = useState({
-		page: 1,
-		limit: 10,
-		total: 0,
-		pages: 1,
-	});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [refreshKey, setRefreshKey] = useState(0);
+	const list = useListState();
+	const page = list.page;
+	const queryClient = useQueryClient();
+	const query = useMatches({ page, limit: PAGE_SIZE });
+	const clamping = useClampedPage(query, page, list);
+	const matches = query.data?.data || [];
+	const pagination = query.data?.pagination || { page: 1, pages: 1 };
+	const loading = query.isPending || clamping;
+	const [actionError, setError] = useState("");
+	const error = query.isError ? messageFrom(query.error, "Failed to load matches.") : actionError;
+	const refresh = () => queryClient.invalidateQueries({ queryKey: ["matches"] });
 	const [formOpen, setFormOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
 	const [formData, setFormData] = useState({
@@ -69,40 +76,6 @@ const Matches = () => {
 			hint: [formatINR(p.pricing?.askingPrice), p.location?.locality || p.location?.city, p.status?.replace("_", " ")].filter(Boolean).join(" · "),
 		}));
 
-	useEffect(() => {
-		let isMounted = true;
-
-		const loadMatches = async () => {
-			setLoading(true);
-			setError("");
-
-			try {
-				const response = await getMatches({
-					page: pagination.page,
-					limit: pagination.limit,
-				});
-				if (!isMounted) return;
-
-				setMatches(response.data || []);
-				setPagination((current) => ({
-					...current,
-					...(response.pagination || {}),
-				}));
-			} catch (err) {
-				if (!isMounted) return;
-				setError(err.response?.data?.message || "Failed to load matches.");
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-
-		loadMatches();
-
-		return () => {
-			isMounted = false;
-		};
-	}, [pagination.page, pagination.limit, refreshKey]);
-
 	const handleCreateMatch = async (event) => {
 		event.preventDefault();
 		setCreating(true);
@@ -120,8 +93,8 @@ const Matches = () => {
 			setPickedProperty(null);
 			setFormOpen(false);
 
-			setPagination((current) => ({ ...current, page: 1 }));
-			setRefreshKey((key) => key + 1);
+			list.set({ page: 1 });
+			refresh();
 		} catch (err) {
 			setError(err.response?.data?.message || "Unable to create match.");
 		} finally {
@@ -136,7 +109,7 @@ const Matches = () => {
 		setError("");
 		try {
 			await updateMatch(match._id, { interestLevel });
-			setMatches((current) => current.map((m) => (m._id === match._id ? { ...m, interestLevel } : m)));
+			await refresh();
 		} catch (err) {
 			setError(messageFrom(err, "Unable to update the match."));
 		} finally {
@@ -156,7 +129,7 @@ const Matches = () => {
 		setError("");
 		try {
 			await deleteMatch(match._id);
-			setRefreshKey((key) => key + 1);
+			await refresh();
 		} catch (err) {
 			setError(messageFrom(err, "Unable to remove the match."));
 		} finally {
@@ -353,41 +326,15 @@ const Matches = () => {
 						</table>
 					</div>
 
-					<div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-6 py-4">
-						<p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
-							Page {pagination.page} of {pagination.pages || 1}
-						</p>
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() =>
-									setPagination((current) => ({
-										...current,
-										page: Math.max(1, current.page - 1),
-									}))
-								}
-								disabled={pagination.page <= 1}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<ChevronLeft size={16} />
-								Prev
-							</button>
-							<button
-								type="button"
-								onClick={() =>
-									setPagination((current) => ({
-										...current,
-										page: Math.min(current.pages || 1, current.page + 1),
-									}))
-								}
-								disabled={pagination.page >= (pagination.pages || 1)}
-								className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								Next
-								<ChevronRight size={16} />
-							</button>
-						</div>
-					</div>
+					{matches.length > 0 ?
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
+						/>
+					:	null}
 				</div>
 			</div>
 		</section>

@@ -11,6 +11,8 @@ import Clients from "../pages/Clients";
 import ChangeRequests from "../pages/ChangeRequests";
 import OwnershipClaims from "../pages/OwnershipClaims";
 import Properties from "../pages/Properties";
+import Matches from "../pages/Matches";
+import ActivityLog from "../pages/ActivityLog";
 import Pagination from "../components/ui/Pagination";
 
 vi.mock("../api/axiosInstance", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -125,5 +127,28 @@ describe("approving a change refreshes the lists it changed", () => {
 		const keys = invalidate.mock.calls.map(([arg]) => arg.queryKey[0]);
 		expect(keys).toEqual(expect.arrayContaining(["changeRequests", "clients", "properties"]));
 		invalidate.mockRestore();
+	});
+});
+
+describe("matches and activity log follow the same contract", () => {
+	test("matches: page from the address, stale page clamped, total shown", async () => {
+		const row = { _id: "m1", interestLevel: "high", createdAt: "2026-09-29T10:00:00Z", client: { name: "Rahul Sinha", clientCode: "CL-1" }, property: { title: "Baner 2BHK", propertyCode: "00AA" }, createdBy: { name: "Tiya" } };
+		vi.mocked(api.get).mockImplementation(async (url, { params }) =>
+			listOf(params.page > 2 ? [] : [row], { page: params.page, pages: 2, total: 14 }),
+		);
+		renderAt(<Matches />, "/matches?page=7");
+		await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("page=2"));
+		expect(await screen.findByText("Rahul Sinha")).toBeInTheDocument();
+		expect(screen.getByText(/of 14/)).toBeInTheDocument();
+	});
+
+	test("activity log: filters and page come from the address", async () => {
+		vi.mocked(api.get).mockImplementation(async (url) =>
+			url === "/auth/brokers" ? { data: { data: [] } } : listOf([], { page: 3, pages: 3, total: 25 }),
+		);
+		renderAt(<ActivityLog />, "/activity-log?page=3&entity=client");
+		await waitFor(() => expect(callsTo("/activity").length).toBeGreaterThan(0));
+		expect(callsTo("/activity")[0]).toMatchObject({ page: 3, entityType: "client", limit: 10 });
+		expect(callsTo("/activity")).toHaveLength(1);
 	});
 });

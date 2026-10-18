@@ -10,6 +10,8 @@ import {
 } from "../api/changeRequestApi";
 import { getOwnershipClaims, resolveOwnershipClaim } from "../api/ownershipApi";
 import { getProperties } from "../api/propertyApi";
+import { getMatches } from "../api/matchApi";
+import { getActivityLogs, getBrokers } from "../api/activityApi";
 
 const clean = (params) => Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ""));
 
@@ -44,6 +46,23 @@ export const useProperties = (params) =>
 		queryFn: () => getProperties(clean(params)),
 		placeholderData: keepPreviousData,
 	});
+
+export const useMatches = (params) =>
+	useQuery({
+		queryKey: ["matches", "list", clean(params)],
+		queryFn: () => getMatches(clean(params)),
+		placeholderData: keepPreviousData,
+	});
+
+export const useActivityLogs = (params) =>
+	useQuery({
+		queryKey: ["activity", clean(params)],
+		queryFn: () => getActivityLogs(clean(params)),
+		placeholderData: keepPreviousData,
+	});
+
+export const useBrokerOptions = (enabled) =>
+	useQuery({ queryKey: ["brokerOptions"], queryFn: async () => (await getBrokers()).data || [], enabled, staleTime: 5 * 60_000 });
 
 export const useOwnershipClaims = (params) =>
 	useQuery({
