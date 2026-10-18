@@ -1,4 +1,4 @@
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import { render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
@@ -62,6 +62,42 @@ describe("pipeline board with more clients than one fetch holds", () => {
 		await waitFor(() => expect(screen.queryByText(/Showing 100 of 175/)).toBeNull());
 		expect(screen.getAllByRole("article")).toHaveLength(175);
 		expect(screen.queryByRole("button", { name: /load .* more/i })).toBeNull();
+	});
+
+	test("every column header shows the server's total for its stage, not the cards that happen to be loaded", async () => {
+		vi.mocked(api.get).mockImplementation(async (url, { params }) => {
+			if (url === "/analytics/pipeline-distribution")
+				return { data: { success: true, data: [{ _id: "lead", count: 162 }, { _id: "contacted", count: 2 }, { _id: "closed", count: 6 }, { _id: "lost", count: 5 }] } };
+			if (url === "/clients") {
+				const page = params.page ?? 1;
+				// 100 newest are all leads: the older, further-along clients are cut off.
+				return { data: { success: true, data: page === 1 ? clientRows(1, 100) : [...clientRows(101, 62), ...[["contacted", 2], ["closed", 6], ["lost", 5]].flatMap(([stage, n], k) => clientRows(900 + k * 10, n).map((c) => ({ ...c, pipelineStage: stage })))], pagination: { page, limit: 100, pages: 2, total: 175 } } };
+			}
+			return { data: { success: true, data: [], pagination: { page: 1, pages: 1, total: 0 } } };
+		});
+		render(<Clients />, { wrapper });
+		await screen.findByText(/Showing 100 of 175/);
+
+		const column = (name) => screen.getByRole("region", { name: `${name} column` });
+		await waitFor(() => expect(within(column("Contacted")).getByText("2")).toBeInTheDocument());
+		expect(within(column("Contacted")).getByText("showing 0")).toBeInTheDocument();
+		expect(within(column("Closed")).getByText("6")).toBeInTheDocument();
+		expect(within(column("Lead")).getByText("162")).toBeInTheDocument();
+		expect(within(column("Lead")).getByText("showing 100")).toBeInTheDocument();
+		// Stages with no clients at all still read 0, with nothing to load.
+		expect(within(column("Negotiation")).getByText("0")).toBeInTheDocument();
+		expect(within(column("Negotiation")).queryByText(/showing/)).toBeNull();
+		// A partial column doesn't pretend to know its rupee total.
+		expect(within(column("Lead")).queryByText(/Cr|L$/)).toBeNull();
+		// Nothing loaded yet is not described as "drop a client here".
+		expect(within(column("Contacted")).queryByText("Drop a client here")).toBeNull();
+		expect(within(column("Negotiation")).getByText("Drop a client here")).toBeInTheDocument();
+
+		// Once everything is loaded the hints go away and the rupee total returns.
+		await userEvent.click(screen.getByRole("button", { name: /load 75 more/i }));
+		await waitFor(() => expect(screen.queryByText(/showing 100/)).toBeNull());
+		expect(within(column("Contacted")).queryByText(/showing/)).toBeNull();
+		expect(within(column("Lead")).getByText(/Cr|L$/)).toBeInTheDocument();
 	});
 
 	test("stays quiet when everything fits", async () => {
