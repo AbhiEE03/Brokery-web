@@ -1,6 +1,6 @@
 // Server state per resource. Pages call these hooks instead of keeping their own
 // loading / error / refresh state; mutations invalidate what they change.
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import {
 	approveChangeRequest,
@@ -171,21 +171,46 @@ export const useAlertActions = () => {
 
 // ---- clients ---------------------------------------------------------------
 
-export const useClients = (params) =>
+export const useClients = (params, { enabled = true } = {}) =>
 	useQuery({
 		queryKey: ["clients", clean(params)],
 		queryFn: async () => (await api.get("/clients", { params: clean(params) })).data,
 		placeholderData: keepPreviousData,
+		enabled,
+	});
+
+export const BOARD_PAGE_SIZE = 100;
+
+// The board shows clients in chunks of 100; "load more" fetches the next chunk
+// instead of silently stopping at the first one.
+export const useBoardClients = (search, { enabled = true } = {}) =>
+	useInfiniteQuery({
+		queryKey: ["clients", "board", search || ""],
+		queryFn: async ({ pageParam }) =>
+			(await api.get("/clients", { params: clean({ search, limit: BOARD_PAGE_SIZE, page: pageParam }) })).data,
+		initialPageParam: 1,
+		getNextPageParam: (last) => (last.pagination.page < last.pagination.pages ? last.pagination.page + 1 : undefined),
+		enabled,
 	});
 
 // Pending stage changes, so the board can show "awaiting approval" on cards.
+// Reads every page: with more than 100 pending, later cards would otherwise
+// quietly lose their badge.
 export const usePendingStageChanges = () =>
 	useQuery({
-		queryKey: ["changeRequests", { status: "pending", entityType: "client", limit: 100 }],
-		queryFn: () => getChangeRequests({ status: "pending", entityType: "client", limit: 100 }),
-		select: (response) =>
+		queryKey: ["changeRequests", { status: "pending", entityType: "client", all: true }],
+		queryFn: async () => {
+			const rows = [];
+			for (let page = 1; page <= 50; page += 1) {
+				const response = await getChangeRequests({ status: "pending", entityType: "client", limit: 100, page });
+				rows.push(...(response.data || []));
+				if (page >= (response.pagination?.pages ?? 1)) break;
+			}
+			return rows;
+		},
+		select: (rows) =>
 			new Map(
-				(response.data || []).flatMap((cr) => {
+				rows.flatMap((cr) => {
 					const stage = cr.changes.find((c) => c.field === "pipelineStage");
 					return stage ? [[cr.entityId?._id ?? cr.entityId, stage.newValue]] : [];
 				}),

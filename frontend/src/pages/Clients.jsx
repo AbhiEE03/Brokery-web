@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Kanban, List, Plus, Search } from "lucide-react";
 import {
+	BOARD_PAGE_SIZE,
+	useBoardClients,
 	useClientMutations,
 	useClients,
 	usePendingStageChanges,
@@ -45,17 +47,18 @@ const Clients = () => {
 		if (search !== list.get("q")) list.set({ q: search }, { replace: true });
 	}, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// The board shows every stage at once (up to 100 clients); the list pages 10 at a time.
-	const query = useClients(
-		view === "board" ?
-			{ search, limit: 100 }
-		:	{ search, stage: stage || undefined, page, limit: PAGE_SIZE },
-	);
-	const clamping = useClampedPage(query, page, list);
+	// The list pages 10 at a time; the board shows every stage at once, 100 clients per load.
+	const listQuery = useClients({ search, stage: stage || undefined, page, limit: PAGE_SIZE }, { enabled: view === "list" });
+	const boardQuery = useBoardClients(search, { enabled: view === "board" });
+	const query = view === "board" ? boardQuery : listQuery;
+	const clamping = useClampedPage(listQuery, page, list);
 	const pending = usePendingStageChanges();
 	const { create, moveStage } = useClientMutations();
-	const clients = query.data?.data || [];
-	const pagination = query.data?.pagination || { page: 1, pages: 1 };
+	const boardPages = boardQuery.data?.pages || [];
+	const clients = view === "board" ? boardPages.flatMap((p) => p.data) : listQuery.data?.data || [];
+	const pagination = listQuery.data?.pagination || { page: 1, pages: 1 };
+	const boardTotal = boardPages[0]?.pagination.total ?? 0;
+	const boardRemaining = Math.max(0, boardTotal - clients.length);
 
 	const switchView = (next) => {
 		list.set({ view: next });
@@ -198,6 +201,22 @@ const Clients = () => {
 				{query.isPending || clamping ?
 					<LoadingState label="Loading clients..." />
 				: view === "board" ?
+					<>
+						{boardRemaining > 0 ?
+							<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+								<p>
+									Showing {clients.length} of {boardTotal} clients, newest first. The counts and totals below cover only these.
+								</p>
+								<button
+									type="button"
+									onClick={() => boardQuery.fetchNextPage()}
+									disabled={boardQuery.isFetchingNextPage}
+									className="rounded-xl bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60 dark:bg-amber-200 dark:text-amber-950"
+								>
+									{boardQuery.isFetchingNextPage ? "Loading…" : `Load ${Math.min(boardRemaining, BOARD_PAGE_SIZE)} more`}
+								</button>
+							</div>
+						:	null}
 					<PipelineBoard
 						clients={clients}
 						pendingByClient={pending.data || new Map()}
@@ -205,6 +224,7 @@ const Clients = () => {
 						onMove={handleMove}
 						busyId={moveStage.isPending ? moveStage.variables?.id : null}
 					/>
+					</>
 				: clients.length === 0 ?
 					<EmptyState
 						title="No clients found"
