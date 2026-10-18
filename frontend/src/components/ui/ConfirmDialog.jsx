@@ -10,11 +10,35 @@ const ConfirmDialog = ({ options, onClose }) => {
 	const titleId = useId();
 	const [note, setNote] = useState("");
 	const firstFieldRef = useRef(null);
+	const dialogRef = useRef(null);
+
+	// Remember what had focus so closing puts it back there.
+	useEffect(() => {
+		const opener = document.activeElement;
+		firstFieldRef.current?.focus();
+		return () => opener?.focus?.();
+	}, []);
 
 	useEffect(() => {
-		firstFieldRef.current?.focus();
 		const onKey = (event) => {
-			if (event.key === "Escape") onClose(null);
+			if (event.key === "Escape") {
+				onClose(null);
+				return;
+			}
+			if (event.key !== "Tab") return;
+			// Keep Tab inside the dialog: wrap from the last control to the first and back.
+			const focusable = [...dialogRef.current.querySelectorAll("button, textarea, input, select, [href]")].filter((el) => !el.disabled);
+			if (!focusable.length) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			const inside = dialogRef.current.contains(document.activeElement);
+			if (event.shiftKey && (document.activeElement === first || !inside)) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+				event.preventDefault();
+				first.focus();
+			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
@@ -29,6 +53,7 @@ const ConfirmDialog = ({ options, onClose }) => {
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={() => onClose(null)}>
 			<form
+				ref={dialogRef}
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby={titleId}
