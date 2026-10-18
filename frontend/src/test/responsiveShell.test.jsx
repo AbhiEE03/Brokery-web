@@ -85,4 +85,13 @@ describe("app shell on small screens", () => {
 		// One bell in the top bar (below xl) and one in the drawer (xl and up).
 		expect(screen.getAllByRole("button", { name: "Notifications" })).toHaveLength(2);
 	});
+
+	// The sidebar is transformed, which makes it the containing block for any
+	// `position: fixed` descendant. The palette must live outside it.
+	test("the search palette is not rendered inside the sidebar", async () => {
+		renderShell();
+		await userEvent.keyboard("{Control>}k{/Control}");
+		const palette = await screen.findByRole("dialog", { name: "Search" });
+		expect(drawer().contains(palette)).toBe(false);
+	});
 });

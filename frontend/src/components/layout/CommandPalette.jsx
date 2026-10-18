@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
@@ -107,7 +108,9 @@ const CommandPalette = ({ open, onClose }) => {
 	const loading = q.length >= 2 && (clients.isFetching || properties.isFetching);
 	let lastGroup = null;
 
-	return (
+	// Rendered into <body>: inside the (transformed) sidebar, `fixed` would be
+	// positioned against the sidebar and not the screen.
+	return createPortal(
 		<div className="fixed inset-0 z-[70] flex items-start justify-center bg-slate-950/40 px-4 pt-[12vh] backdrop-blur-sm" onMouseDown={onClose}>
 			<div
 				role="dialog"
@@ -178,7 +181,8 @@ const CommandPalette = ({ open, onClose }) => {
 					<span>Ctrl K anywhere</span>
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 };
 
