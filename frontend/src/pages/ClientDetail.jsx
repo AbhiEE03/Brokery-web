@@ -10,6 +10,7 @@ import ShortlistPanel from "../components/shortlists/ShortlistPanel";
 import EditPreview from "../components/EditPreview";
 import { buildPatch, changedPaths, classifyChanges } from "../utils/diff";
 import { messageFrom } from "../utils/errors";
+import { formatINR } from "../utils/format";
 
 const NUMERIC_FIELDS = new Set([
 	"requirements.minBudget",
@@ -18,6 +19,8 @@ const NUMERIC_FIELDS = new Set([
 	"requirements.maxArea",
 	"requirements.bedrooms",
 ]);
+
+const MONEY_FIELDS = new Set(["requirements.minBudget", "requirements.maxBudget"]);
 
 const PIPELINE_STAGES = ["lead", "contacted", "site_visit", "negotiation", "closed", "lost"];
 
@@ -260,8 +263,8 @@ const ClientDetail = () => {
 									{[
 										["Property Type", client.requirements?.propertyType],
 										["Locality", client.requirements?.locality],
-										["Min Budget", client.requirements?.minBudget],
-										["Max Budget", client.requirements?.maxBudget],
+										["Min Budget", client.requirements?.minBudget != null ? formatINR(client.requirements.minBudget) : null],
+										["Max Budget", client.requirements?.maxBudget != null ? formatINR(client.requirements.maxBudget) : null],
 										["Min Area", client.requirements?.minArea],
 										["Max Area", client.requirements?.maxArea],
 										["Bedrooms", client.requirements?.bedrooms],
@@ -358,6 +361,9 @@ const ClientDetail = () => {
 													className={inputClass}
 												/>
 											}
+											{MONEY_FIELDS.has(name) && Number(value) > 0 ?
+												<span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">= {formatINR(value)}</span>
+											:	null}
 										</label>
 									);
 								})}
