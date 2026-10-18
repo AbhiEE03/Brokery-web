@@ -219,9 +219,17 @@ const Clients = () => {
 								</button>
 							</div>
 						:	null}
+						{boardRemaining > 0 && stageCounts.isError ?
+							<ErrorState
+								error="Couldn't load how many clients each stage has, so the column totals are shown as “—”."
+								onRetry={stageCounts.refetch}
+								retryLabel="Retry"
+							/>
+						:	null}
 					<PipelineBoard
 						clients={clients}
 						stageTotals={stageCounts.data}
+						boardPartial={boardRemaining > 0}
 						pendingByClient={pending.data || new Map()}
 						isAdmin={isAdmin}
 						onMove={handleMove}

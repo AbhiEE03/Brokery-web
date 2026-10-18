@@ -15,12 +15,12 @@ export const EmptyState = ({ title, hint }) => (
 	</div>
 );
 
-export const ErrorState = ({ error, onRetry }) => (
+export const ErrorState = ({ error, onRetry, retryLabel = "Try again" }) => (
 	<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
 		<span>{messageFrom(error)}</span>
 		{onRetry ?
 			<button type="button" onClick={onRetry} className="font-semibold underline">
-				Try again
+				{retryLabel}
 			</button>
 		:	null}
 	</div>
