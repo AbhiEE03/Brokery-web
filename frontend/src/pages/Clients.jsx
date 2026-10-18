@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Kanban, List, Plus, Search } from "lucide-react";
 import {
@@ -8,6 +8,7 @@ import {
 	usePendingStageChanges,
 } from "../hooks/queries";
 import useDebouncedValue from "../hooks/useDebouncedValue";
+import useListState, { useClampedPage } from "../hooks/useListState";
 import useToast from "../hooks/useToast";
 import Pagination from "../components/ui/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/States";
@@ -18,6 +19,7 @@ import { formatINR } from "../utils/format";
 import { messageFrom } from "../utils/errors";
 
 const VIEW_KEY = "clients-view";
+const PAGE_SIZE = 10;
 const readView = () => {
 	try {
 		return localStorage.getItem(VIEW_KEY) === "board" ? "board" : "list";
@@ -30,33 +32,33 @@ const Clients = () => {
 	const navigate = useNavigate();
 	const toast = useToast();
 	const isAdmin = useSelector((state) => state.auth.user?.role === "admin");
-	const [params, setParams] = useSearchParams();
-	const [view, setView] = useState(() => params.get("view") || readView());
-	// ?view=board (e.g. from the command palette) switches the view even when already here.
-	useEffect(() => {
-		const requested = params.get("view");
-		if (requested === "board" || requested === "list") setView(requested);
-	}, [params]);
-	const [searchTerm, setSearchTerm] = useState("");
-	const [stage, setStage] = useState("");
-	const [page, setPage] = useState(1);
+	// Page, search, stage and view live in the address bar: Back, refresh and
+	// shared links restore the same list instead of starting again at page 1.
+	const list = useListState();
+	const page = list.page;
+	const stage = list.get("stage");
+	const view = list.get("view") || readView();
+	const [searchTerm, setSearchTerm] = useState(list.get("q"));
 	const [formOpen, setFormOpen] = useState(false);
 	const search = useDebouncedValue(searchTerm.trim());
+	useEffect(() => {
+		if (search !== list.get("q")) list.set({ q: search }, { replace: true });
+	}, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// The board shows every stage at once (up to 100 clients); the list pages 10 at a time.
 	const query = useClients(
 		view === "board" ?
 			{ search, limit: 100 }
-		:	{ search, stage: stage || undefined, page, limit: 10 },
+		:	{ search, stage: stage || undefined, page, limit: PAGE_SIZE },
 	);
+	const clamping = useClampedPage(query, page, list);
 	const pending = usePendingStageChanges();
 	const { create, moveStage } = useClientMutations();
 	const clients = query.data?.data || [];
 	const pagination = query.data?.pagination || { page: 1, pages: 1 };
 
 	const switchView = (next) => {
-		setView(next);
-		setParams({}, { replace: true });
+		list.set({ view: next });
 		try {
 			localStorage.setItem(VIEW_KEY, next);
 		} catch {
@@ -164,7 +166,6 @@ const Clients = () => {
 							value={searchTerm}
 							onChange={(event) => {
 								setSearchTerm(event.target.value);
-								setPage(1);
 							}}
 							placeholder="Search by name"
 							aria-label="Search clients"
@@ -175,8 +176,7 @@ const Clients = () => {
 						<select
 							value={stage}
 							onChange={(event) => {
-								setStage(event.target.value);
-								setPage(1);
+								list.set({ stage: event.target.value });
 							}}
 							aria-label="Stage"
 							className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
@@ -195,7 +195,7 @@ const Clients = () => {
 					<ErrorState error={query.error} onRetry={query.refetch} />
 				:	null}
 
-				{query.isPending ?
+				{query.isPending || clamping ?
 					<LoadingState label="Loading clients..." />
 				: view === "board" ?
 					<PipelineBoard
@@ -294,7 +294,8 @@ const Clients = () => {
 							page={pagination.page}
 							pages={pagination.pages}
 							total={pagination.total}
-							onPageChange={setPage}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
 						/>
 					</div>
 				}

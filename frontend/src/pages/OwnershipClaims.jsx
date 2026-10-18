@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, ShieldCheck, UserCheck } from "lucide-react";
+import { ShieldCheck, UserCheck } from "lucide-react";
 import { useOwnershipClaims, useResolveOwnershipClaim } from "../hooks/queries";
 import useConfirmDialog from "../hooks/useConfirmDialog";
+import useListState, { useClampedPage } from "../hooks/useListState";
+import Pagination from "../components/ui/Pagination";
 import { messageFrom } from "../utils/errors";
+
+const PAGE_SIZE = 10;
 
 const statusOptions = ["open", "upheld", "transferred", "all"];
 
@@ -31,20 +35,21 @@ const Person = ({ label, user, time, timeLabel }) => (
 );
 
 const OwnershipClaims = () => {
-	const [status, setStatus] = useState("open");
-	const [page, setPage] = useState(1);
+	const list = useListState({ status: "open" });
+	const status = list.get("status");
+	const page = list.page;
 	const [notice, setNotice] = useState("");
 	const [actionError, setActionError] = useState("");
 	const { confirm, dialog } = useConfirmDialog();
 
-	const query = useOwnershipClaims({ status: status === "all" ? undefined : status, page, limit: 10 });
+	const query = useOwnershipClaims({ status: status === "all" ? undefined : status, page, limit: PAGE_SIZE });
+	const clamping = useClampedPage(query, page, list);
 	const resolve = useResolveOwnershipClaim();
 	const claims = query.data?.data || [];
 	const pagination = query.data?.pagination || { page: 1, pages: 1 };
-	const loading = query.isPending;
+	const loading = query.isPending || clamping;
 	const error = query.isError ? messageFrom(query.error, "Failed to load ownership claims.") : actionError;
 	const resolvingId = resolve.isPending ? resolve.variables?.id : "";
-	const setPagination = (update) => setPage((current) => update({ page: current }).page);
 
 	const handleResolve = async (claim, decision) => {
 		const clientName = claim.existingClient?.name || "this client";
@@ -91,10 +96,7 @@ const OwnershipClaims = () => {
 					</div>
 					<select
 						value={status}
-						onChange={(event) => {
-							setStatus(event.target.value);
-							setPage(1);
-						}}
+						onChange={(event) => list.set({ status: event.target.value })}
 						aria-label="Status"
 						className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-300"
 					>
@@ -196,27 +198,15 @@ const OwnershipClaims = () => {
 					</div>
 				}
 
-				{pagination.pages > 1 ?
-					<div className="flex items-center justify-end gap-3 text-sm text-slate-600 dark:text-slate-300">
-						<button
-							type="button"
-							aria-label="Previous page"
-							disabled={pagination.page <= 1}
-							onClick={() => setPagination((c) => ({ ...c, page: c.page - 1 }))}
-							className="rounded-xl border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700"
-						>
-							<ChevronLeft size={16} />
-						</button>
-						Page {pagination.page} of {pagination.pages}
-						<button
-							type="button"
-							aria-label="Next page"
-							disabled={pagination.page >= pagination.pages}
-							onClick={() => setPagination((c) => ({ ...c, page: c.page + 1 }))}
-							className="rounded-xl border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700"
-						>
-							<ChevronRight size={16} />
-						</button>
+				{claims.length > 0 ?
+					<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
+						/>
 					</div>
 				:	null}
 			</div>

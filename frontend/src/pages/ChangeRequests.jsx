@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle, Undo2, XCircle } from "lucide-react";
 import { useChangeRequestDecision, useChangeRequests } from "../hooks/queries";
 import useConfirmDialog from "../hooks/useConfirmDialog";
+import useListState, { useClampedPage } from "../hooks/useListState";
 import Pagination from "../components/ui/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/States";
 import { messageFrom } from "../utils/errors";
@@ -28,6 +29,8 @@ const BROKER_TABS = [
 	{ key: "pending", label: "Waiting", status: "pending", empty: "You have no requests waiting for approval." },
 	{ key: "history", label: "History", status: "resolved", empty: "No decided requests yet." },
 ];
+
+const PAGE_SIZE = 10;
 
 const inputClass =
 	"rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-700/50 dark:text-slate-300";
@@ -94,24 +97,23 @@ const ChangeRequests = () => {
 	const isAdmin = user?.role === "admin";
 	const tabs = isAdmin ? ADMIN_TABS : BROKER_TABS;
 
-	const [tabKey, setTabKey] = useState("pending");
-	const [entityType, setEntityType] = useState("");
-	const [from, setFrom] = useState("");
-	const [to, setTo] = useState("");
-	const [page, setPage] = useState(1);
+	// Tab, filters and page are in the address, so a refresh or Back keeps your place.
+	const list = useListState({ tab: "pending" });
+	const page = list.page;
+	const entityType = list.get("type");
+	const from = list.get("from");
+	const to = list.get("to");
 	const [actionError, setActionError] = useState("");
 	const { confirm, dialog } = useConfirmDialog();
 
-	const tab = tabs.find((t) => t.key === tabKey) || tabs[0];
-	const query = useChangeRequests({ status: tab.status, entityType, from, to, page, limit: 10 });
+	const tab = tabs.find((t) => t.key === list.get("tab")) || tabs[0];
+	const query = useChangeRequests({ status: tab.status, entityType, from, to, page, limit: PAGE_SIZE });
+	const clamping = useClampedPage(query, page, list);
 	const decide = useChangeRequestDecision();
 	const requests = query.data?.data || [];
 	const pagination = query.data?.pagination || { page: 1, pages: 1 };
 
-	const changeFilter = (setter) => (event) => {
-		setter(event.target.value);
-		setPage(1);
-	};
+	const changeFilter = (key) => (event) => list.set({ [key]: event.target.value });
 
 	const handleAction = async (request, action) => {
 		const fields = request.changes.map((c) => fieldLabel(c.field)).join(", ");
@@ -167,8 +169,7 @@ const ChangeRequests = () => {
 							role="tab"
 							aria-selected={t.key === tab.key}
 							onClick={() => {
-								setTabKey(t.key);
-								setPage(1);
+								list.set({ tab: t.key });
 							}}
 							className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
 								t.key === tab.key ?
@@ -182,19 +183,19 @@ const ChangeRequests = () => {
 				</div>
 
 				<div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:grid-cols-3">
-					<select value={entityType} onChange={changeFilter(setEntityType)} aria-label="Record type" className={inputClass}>
+					<select value={entityType} onChange={changeFilter("type")} aria-label="Record type" className={inputClass}>
 						<option value="">Clients and properties</option>
 						<option value="client">Clients</option>
 						<option value="property">Properties</option>
 					</select>
-					<input type="date" value={from} onChange={changeFilter(setFrom)} aria-label="From date" className={inputClass} />
-					<input type="date" value={to} onChange={changeFilter(setTo)} aria-label="To date" className={inputClass} />
+					<input type="date" value={from} onChange={changeFilter("from")} aria-label="From date" className={inputClass} />
+					<input type="date" value={to} onChange={changeFilter("to")} aria-label="To date" className={inputClass} />
 				</div>
 
 				{actionError ? <ErrorState error={actionError} /> : null}
 				{query.isError ? <ErrorState error={query.error} onRetry={query.refetch} /> : null}
 
-				{query.isPending ?
+				{query.isPending || clamping ?
 					<LoadingState label="Loading change requests..." />
 				: requests.length === 0 ?
 					<EmptyState title={tab.empty} />
@@ -277,7 +278,13 @@ const ChangeRequests = () => {
 								</li>
 							))}
 						</ul>
-						<Pagination page={pagination.page} pages={pagination.pages} total={pagination.total} onPageChange={setPage} />
+						<Pagination
+							page={pagination.page}
+							pages={pagination.pages}
+							total={pagination.total}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
+						/>
 					</div>
 				}
 			</div>

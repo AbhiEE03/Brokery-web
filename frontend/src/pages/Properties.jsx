@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { createProperty } from "../api/propertyApi";
 import { useProperties } from "../hooks/queries";
 import useDebouncedValue from "../hooks/useDebouncedValue";
+import useListState, { useClampedPage } from "../hooks/useListState";
 import Pagination from "../components/ui/Pagination";
 import { messageFrom } from "../utils/errors";
 import PropertyCard from "../components/properties/PropertyCard";
@@ -23,12 +24,13 @@ const statusOptions = [
 const Properties = () => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const [page, setPage] = useState(1);
+	const list = useListState({ type: "all", status: "all" });
+	const page = list.page;
 	const [error, setError] = useState("");
-	const [searchTerm, setSearchTerm] = useState("");
-	const [city, setCity] = useState("");
-	const [type, setType] = useState("all");
-	const [status, setStatus] = useState("all");
+	const [searchTerm, setSearchTerm] = useState(list.get("q"));
+	const [city, setCity] = useState(list.get("city"));
+	const type = list.get("type");
+	const status = list.get("status");
 	const [formOpen, setFormOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
 	const [formData, setFormData] = useState({
@@ -40,6 +42,13 @@ const Properties = () => {
 
 	const debouncedSearch = useDebouncedValue(searchTerm.trim());
 	const debouncedCity = useDebouncedValue(city.trim());
+	// Typing is debounced into the address bar (without piling up history entries).
+	useEffect(() => {
+		if (debouncedSearch !== list.get("q")) list.set({ q: debouncedSearch }, { replace: true });
+	}, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+	useEffect(() => {
+		if (debouncedCity !== list.get("city")) list.set({ city: debouncedCity }, { replace: true });
+	}, [debouncedCity]); // eslint-disable-line react-hooks/exhaustive-deps
 	const query = useProperties({
 		search: debouncedSearch || undefined,
 		city: debouncedCity || undefined,
@@ -48,17 +57,12 @@ const Properties = () => {
 		page,
 		limit: PAGE_SIZE,
 	});
+	const clamping = useClampedPage(query, page, list);
 	const properties = query.data?.data || [];
 	const pagination = query.data?.pagination || { page: 1, pages: 1 };
-	const loading = query.isPending;
+	const loading = query.isPending || clamping;
 	const listError =
 		query.isError ? messageFrom(query.error, "Failed to load properties.") : "";
-
-	// Any filter change starts again from page 1.
-	const withReset = (setter) => (value) => {
-		setter(value);
-		setPage(1);
-	};
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
@@ -111,7 +115,7 @@ const Properties = () => {
 						<input
 							type="search"
 							value={searchTerm}
-							onChange={(event) => withReset(setSearchTerm)(event.target.value)}
+							onChange={(event) => setSearchTerm(event.target.value)}
 							placeholder="Search property title"
 							className="w-full bg-transparent text-sm text-slate-950 dark:text-white outline-none placeholder:text-slate-400"
 						/>
@@ -120,14 +124,14 @@ const Properties = () => {
 					<input
 						type="text"
 						value={city}
-						onChange={(event) => withReset(setCity)(event.target.value)}
+						onChange={(event) => setCity(event.target.value)}
 						placeholder="City"
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition focus:border-slate-400"
 					/>
 
 					<select
 						value={type}
-						onChange={(event) => withReset(setType)(event.target.value)}
+						onChange={(event) => list.set({ type: event.target.value })}
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{typeOptions.map((option) => (
@@ -139,7 +143,7 @@ const Properties = () => {
 
 					<select
 						value={status}
-						onChange={(event) => withReset(setStatus)(event.target.value)}
+						onChange={(event) => list.set({ status: event.target.value })}
 						className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 outline-none transition focus:border-slate-400"
 					>
 						{statusOptions.map((option) => (
@@ -300,13 +304,14 @@ const Properties = () => {
 					}
 				</div>
 
-				{pagination.pages > 1 ?
+				{properties.length > 0 ?
 					<div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
 						<Pagination
 							page={pagination.page}
 							pages={pagination.pages}
 							total={pagination.total}
-							onPageChange={setPage}
+							limit={PAGE_SIZE}
+							onPageChange={(next) => list.set({ page: next })}
 						/>
 					</div>
 				:	null}
