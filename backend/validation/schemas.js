@@ -349,6 +349,9 @@ const listActivityQuery = z
 	})
 	.transform((query) => ({ ...query, to: endOfDay(query.to) }));
 
+// Same filters as the client list, so a filtered board can show matching totals.
+const pipelineDistributionQuery = z.object({ broker: objectId.optional(), search });
+
 const listMatchesQuery = z.object({
 	...pagination,
 	interestLevel: z.enum(INTEREST_LEVELS).optional(),
@@ -390,5 +393,6 @@ module.exports = {
 	dismissRecommendationBody,
 	resolveOwnershipClaimBody,
 	listMatchesQuery,
+	pipelineDistributionQuery,
 	entityParams,
 };

@@ -79,7 +79,7 @@ const routes = [
 	// ---- analytics & meta
 	{ method: "get", path: "/analytics/summary", tag: "Analytics", auth: "admin", summary: "KPI totals" },
 	{ method: "get", path: "/analytics/deals-by-month", tag: "Analytics", auth: "admin", summary: "Closures per month (from stage events)" },
-	{ method: "get", path: "/analytics/pipeline-distribution", tag: "Analytics", auth: "admin", summary: "Clients per stage" },
+	{ method: "get", path: "/analytics/pipeline-distribution", tag: "Analytics", auth: "user", summary: "Clients per stage (brokers: their own; `search` narrows by name; admins may pass `broker`)", query: s.pipelineDistributionQuery },
 	{ method: "get", path: "/analytics/broker-performance", tag: "Analytics", auth: "admin", summary: "Per-broker closed, lost, open and conversion" },
 	{ method: "get", path: "/analytics/property-by-city", tag: "Analytics", auth: "admin", summary: "Inventory per city" },
 	{ method: "get", path: "/analytics/funnel", tag: "Analytics", auth: "admin", summary: "Cumulative stage funnel" },

@@ -193,6 +193,16 @@ export const useBoardClients = (search, { enabled = true } = {}) =>
 		enabled,
 	});
 
+// How many clients each stage really has (for the same name search), so board
+// column headers stay true while only some of the cards are loaded.
+export const useStageCounts = (search, { enabled = true } = {}) =>
+	useQuery({
+		queryKey: ["clients", "stageCounts", search || ""],
+		queryFn: async () => (await api.get("/analytics/pipeline-distribution", { params: clean({ search }) })).data,
+		select: (response) => new Map((response.data || []).map((row) => [row._id, row.count])),
+		enabled,
+	});
+
 // Pending stage changes, so the board can show "awaiting approval" on cards.
 // Reads every page: with more than 100 pending, later cards would otherwise
 // quietly lose their badge.

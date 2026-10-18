@@ -1,8 +1,10 @@
+const mongoose = require("mongoose");
 const Client = require("../models/Client");
 const Property = require("../models/Property");
 const User = require("../models/User");
 const ChangeRequest = require("../models/ChangeRequest");
 const StageTransition = require("../models/StageTransition");
+const { escapeRegex } = require("../utils/regex");
 
 // Forward pipeline order; "lost" can happen from any stage and is excluded.
 const FUNNEL_STAGES = ["lead", "contacted", "site_visit", "negotiation", "closed"];
@@ -69,8 +71,18 @@ exports.getDealsByMonth = async (req, res) => {
 	res.status(200).json({ success: true, data });
 };
 
+// Clients per stage. Scoped like the client list: a broker sees their own clients,
+// an admin sees everyone's (or one broker's with ?broker=), and ?search= narrows by
+// name, so the counts always match the list or board being looked at.
 exports.getPipelineDistribution = async (req, res) => {
+	const { broker, search } = req.validated.query;
+	const filter = {};
+	if (req.user.role === "broker") filter.assignedBroker = req.user._id;
+	else if (broker) filter.assignedBroker = new mongoose.Types.ObjectId(broker);
+	if (search) filter.name = { $regex: escapeRegex(search), $options: "i" };
+
 	const data = await Client.aggregate([
+		{ $match: filter },
 		{ $group: { _id: "$pipelineStage", count: { $sum: 1 } } },
 		{ $sort: { count: -1 } },
 	]);

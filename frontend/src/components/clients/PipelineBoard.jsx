@@ -63,7 +63,9 @@ const ClientCard = ({ client, pendingStage, isAdmin, onMove, busy }) => (
 	</article>
 );
 
-const PipelineBoard = ({ clients, pendingByClient, isAdmin, onMove, busyId }) => {
+// `stageTotals` (stage -> how many clients the server has) keeps the headers true
+// when only some cards are loaded. Without it, headers fall back to loaded counts.
+const PipelineBoard = ({ clients, stageTotals, pendingByClient, isAdmin, onMove, busyId }) => {
 	const [over, setOver] = useState(null);
 	const byStage = Object.fromEntries(STAGES.map((s) => [s.key, []]));
 	clients.forEach((client) => byStage[client.pipelineStage]?.push(client));
@@ -73,7 +75,11 @@ const PipelineBoard = ({ clients, pendingByClient, isAdmin, onMove, busyId }) =>
 			<div className="flex min-w-max gap-4 px-2">
 				{STAGES.map((stage) => {
 					const items = byStage[stage.key];
-					const total = items.reduce((sum, c) => sum + (c.requirements?.maxBudget || 0), 0);
+					const count = stageTotals ? (stageTotals.get(stage.key) ?? 0) : items.length;
+					// Cards for this stage still to be loaded: its header says so instead of looking empty.
+					const partial = count > items.length;
+					// A rupee total over some of the cards would read as the column's total, so it is hidden until the column is complete.
+					const total = partial ? 0 : items.reduce((sum, c) => sum + (c.requirements?.maxBudget || 0), 0);
 					return (
 						<section
 							key={stage.key}
@@ -101,8 +107,11 @@ const PipelineBoard = ({ clients, pendingByClient, isAdmin, onMove, busyId }) =>
 									<span className={`h-2 w-2 rounded-full ${stage.dot}`} />
 									{stage.label}
 									<span className="rounded-full bg-white px-2 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-										{items.length}
+										{count}
 									</span>
+									{partial ?
+										<span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">showing {items.length}</span>
+									:	null}
 								</span>
 								{total ? <span className="text-[11px] font-medium text-slate-400">{formatINR(total)}</span> : null}
 							</header>
@@ -118,6 +127,10 @@ const PipelineBoard = ({ clients, pendingByClient, isAdmin, onMove, busyId }) =>
 											busy={busyId === client._id}
 										/>
 									))
+								: partial ?
+									<p className="rounded-xl border border-dashed border-amber-300 px-3 py-6 text-center text-xs text-amber-700 dark:border-amber-800 dark:text-amber-300">
+										{count} not loaded yet. Use “Load more” above.
+									</p>
 								:	<p className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-400 dark:border-slate-700">
 										Drop a client here
 									</p>

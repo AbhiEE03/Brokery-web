@@ -88,7 +88,8 @@ describe("pipeline board with more clients than one fetch holds", () => {
 		expect(within(column("Negotiation")).getByText("0")).toBeInTheDocument();
 		expect(within(column("Negotiation")).queryByText(/showing/)).toBeNull();
 		// A partial column doesn't pretend to know its rupee total.
-		expect(within(column("Lead")).queryByText(/Cr|L$/)).toBeNull();
+		const header = (name) => column(name).querySelector("header");
+		expect(header("Lead")).not.toHaveTextContent("₹");
 		// Nothing loaded yet is not described as "drop a client here".
 		expect(within(column("Contacted")).queryByText("Drop a client here")).toBeNull();
 		expect(within(column("Negotiation")).getByText("Drop a client here")).toBeInTheDocument();
@@ -97,7 +98,7 @@ describe("pipeline board with more clients than one fetch holds", () => {
 		await userEvent.click(screen.getByRole("button", { name: /load 75 more/i }));
 		await waitFor(() => expect(screen.queryByText(/showing 100/)).toBeNull());
 		expect(within(column("Contacted")).queryByText(/showing/)).toBeNull();
-		expect(within(column("Lead")).getByText(/Cr|L$/)).toBeInTheDocument();
+		expect(header("Lead")).toHaveTextContent(/₹.*(Cr|L)/);
 	});
 
 	test("stays quiet when everything fits", async () => {

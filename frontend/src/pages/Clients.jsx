@@ -8,6 +8,7 @@ import {
 	useClientMutations,
 	useClients,
 	usePendingStageChanges,
+	useStageCounts,
 } from "../hooks/queries";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import useListState, { useClampedPage } from "../hooks/useListState";
@@ -50,6 +51,7 @@ const Clients = () => {
 	// The list pages 10 at a time; the board shows every stage at once, 100 clients per load.
 	const listQuery = useClients({ search, stage: stage || undefined, page, limit: PAGE_SIZE }, { enabled: view === "list" });
 	const boardQuery = useBoardClients(search, { enabled: view === "board" });
+	const stageCounts = useStageCounts(search, { enabled: view === "board" });
 	const query = view === "board" ? boardQuery : listQuery;
 	const clamping = useClampedPage(listQuery, page, list);
 	const pending = usePendingStageChanges();
@@ -219,6 +221,7 @@ const Clients = () => {
 						:	null}
 					<PipelineBoard
 						clients={clients}
+						stageTotals={stageCounts.data}
 						pendingByClient={pending.data || new Map()}
 						isAdmin={isAdmin}
 						onMove={handleMove}
