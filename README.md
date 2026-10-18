@@ -18,7 +18,7 @@ A role-based CRM for small real-estate brokerages: brokers manage their clients 
 - **Event-driven re-match alerts:** property changes and their events commit together (transactional outbox), and an idempotent worker alerts brokers when a change makes a listing fit one of their clients.
 - **Measured performance:** 6–10× list and report queries on 100k synthetic clients after adding query-driven indexes (see [Performance](#performance)).
 - **Team management:** admins add, deactivate and offboard brokers. Deactivation and password resets revoke sessions immediately, through a token version in each JWT. A leaving broker's clients move to someone else in one audited transaction, and the system never ends up without an active admin, even with two admins acting at once.
-- **Tests and CI:** 229 backend tests against a real in-memory MongoDB replica set, 39 frontend tests and a browser end-to-end test, all run in CI on every pull request. API docs are generated from the same validators: [`/api/docs`](https://brokery-api.onrender.com/api/docs).
+- **Tests and CI:** 229 backend tests against a real in-memory MongoDB replica set, 42 frontend tests and a browser end-to-end test, all run in CI on every pull request. API docs are generated from the same validators: [`/api/docs`](https://brokery-api.onrender.com/api/docs).
 
 ## Architecture
 
@@ -74,7 +74,7 @@ Every write that matters happens in **one transaction**: the change itself, its 
 - **Re-match alerts** — when a property is listed, or its price, status, size, bedrooms or location changes, the change and a `PropertyChanged` event commit together (transactional outbox). The worker scores candidate clients before and after the change and alerts the client's broker when the score **crosses** the match threshold (e.g. "Price dropped from ₹1.25 Cr to ₹95 L · 92% match"). A unique `(event, client)` index makes reprocessing harmless, and `/readyz` reports the age of the oldest unprocessed event. See [ADR 005](docs/adr/005-outbox-and-rematch.md).
 - **Readable codes** — clients get `CL-000001`-style codes; properties get `00AA → 00AB → … → 01AA` codes, reserved from atomic counters so concurrent creates never collide.
 - **Property search** — relevance-ranked full-text search on title and locality (text index), falling back to substring matching for partial words and property codes.
-- **Tamper-evident audit log** — every change, upload, approval decision, account event and login is recorded with before/after values, the actor and the request id, inside the same transaction as the change. Entries are hash-chained (`sha256(prevHash + entry)`), and `GET /api/activity/verify` pinpoints the first edited or missing entry. Filterable by entity, broker and date, with keyset pagination. See [ADR 003](docs/adr/003-audit-log-and-ownership.md).
+- **Tamper-evident audit log** — every change, upload, approval decision, account event and login is recorded with before/after values, the actor and the request id, inside the same transaction as the change. Entries are hash-chained (`sha256(prevHash + entry)`), and `GET /api/activity/verify` pinpoints the first edited or missing entry. Filterable by entity, broker and date. The API supports keyset pagination (`?cursor=`); the Activity Log page itself pages by offset. See [ADR 003](docs/adr/003-audit-log-and-ownership.md).
 - **Client ownership protection** — phone numbers are normalised (`098765 43210` = `+91-98765-43210`) and unique among live clients via a database index, so two brokers can't both register the same buyer, even at the same instant. The second broker learns only that the client exists; an ownership claim goes to the admin with the audit entry proving who registered first, and the admin keeps or transfers the client.
 - **Uploads** — client documents (PDF/images) and property images are stored on Cloudinary; file types are verified by content signature, 5 MB limit.
 - **Reliable notifications** — approval outcomes are written to a transactional outbox and emailed by a background worker with retries and exponential backoff, so SMTP problems never block or roll back an approval.
@@ -88,7 +88,7 @@ Every write that matters happens in **one transaction**: the change itself, its 
   - Edit forms send only the fields you changed and show which of them will need approval *before* you save, using rules from `GET /api/meta/edit-policies` rather than copies in the UI.
   - Each client and property shows its history from the audit log.
   - The approval queue has Pending / Conflicts / History tabs, with a side-by-side "requester saw → now → requested" view for conflicts.
-  - Accessible confirmation dialogs; prices shown in ₹ lakh/crore.
+  - Confirmation dialogs that keep keyboard focus inside and give it back on close; prices shown as ₹ lakh/crore, with a live ₹ L/Cr hint beside the rupee inputs on the edit forms.
 - **Team management** — an admin-only Team page (`/team`):
   - Add a broker or admin. Leave the password blank to get a strong generated one, shown once.
   - Reset a password. This bumps the user's `tokenVersion`, so every existing session ends at once.
@@ -101,7 +101,7 @@ Every write that matters happens in **one transaction**: the change itself, its 
   - **Search and previews:** meta description, canonical URL, Open Graph and Twitter cards with a 1200×630 preview image, and JSON-LD structured data.
   - **Crawl control:** `robots.txt` and `sitemap.xml`. App routes and buyer shortlist links are served from separate `noindex` shells.
   - **Performance:** route-level code splitting (895 KB → 301 KB main bundle), responsive images and long-lived caching for hashed assets.
-  - **Lighthouse:** 99–100 on performance, accessibility, best practices and SEO (mobile and desktop, measured on a production build).
+  - **Lighthouse:** 99–100 on performance, accessibility, best practices and SEO for the landing page (mobile and desktop, measured on a production build). The signed-in app screens were not audited.
 - **Operational basics** — structured JSON logs with request IDs, consistent JSON error responses, Helmet security headers, per-IP API rate limits and per-account login throttling, `/healthz` and `/readyz` probes, env validation at boot, graceful shutdown.
 
 ## Performance
@@ -137,7 +137,10 @@ No evaluation numbers are published yet: the labels have to come from a person g
 - **Audit chain:** it proves integrity against edits, not against someone rewriting the whole database from a point onwards. Publishing the chain head periodically would close that gap.
 - **Audit write throughput:** writes are serialised through one counter document. That's fine at CRM volumes; chaining per entity would scale further.
 - **Matching:** weights are hand-set until labelled data exists, and freshness favours new listings.
-- **Pipeline board:** it loads up to 100 clients at once. The list view pages through everything.
+- **Pipeline board:** it loads the 100 newest clients only, and the per-column counts and ₹ totals cover just those. The list view pages through everything.
+- **Pagination:** every list pages by offset with a total count. Deep pages get slower; the API has a keyset cursor for the audit feed, but no screen uses it yet.
+- **Date filters:** the Activity Log and Change Requests date filters are interpreted in UTC, so for users in India they are off by 5 h 30 min at the edges of a day.
+- **Mobile:** below tablet width the data tables scroll sideways instead of reflowing into cards.
 - **Dashboard totals:** they're full-collection aggregations (~160 ms at 100k clients) and aren't pre-computed yet.
 - **Ownership protection:** it's per phone number. A buyer using two numbers can still be registered twice.
 - **Login token:** it's kept in `localStorage`. React escapes output and no raw HTML is rendered, but an httpOnly cookie would be stronger.
