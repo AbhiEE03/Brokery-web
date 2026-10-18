@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
 	Bar,
 	BarChart,
@@ -11,7 +11,8 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import { AlertCircle, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
+import { ErrorState } from "../components/ui/States";
 import {
 	getBrokerPerformance,
 	getDealsByMonth,
@@ -53,90 +54,42 @@ const formatMonthLabel = (item) => {
 	);
 };
 
+const useAnalytics = (key, fetcher) =>
+	useQuery({ queryKey: ["analytics", key], queryFn: async () => (await fetcher()).data });
+
 const Dashboard = () => {
-	const [summary, setSummary] = useState(null);
-	const [dealsByMonth, setDealsByMonth] = useState([]);
-	const [pipelineDistribution, setPipelineDistribution] = useState([]);
-	const [brokerPerformance, setBrokerPerformance] = useState([]);
-	const [propertyByCity, setPropertyByCity] = useState([]);
-	const [funnel, setFunnel] = useState([]);
-	const [timeInStage, setTimeInStage] = useState([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
+	// One query per section: a slow or failing endpoint only affects its own
+	// card, and every card can be retried on its own.
+	const summaryQuery = useAnalytics("summary", getSummary);
+	const dealsQuery = useAnalytics("deals", getDealsByMonth);
+	const pipelineQuery = useAnalytics("pipeline", getPipelineDistribution);
+	const brokerQuery = useAnalytics("brokers", getBrokerPerformance);
+	const cityQuery = useAnalytics("cities", getPropertyByCity);
+	const funnelQuery = useAnalytics("funnel", getFunnel);
+	const timeQuery = useAnalytics("timeInStage", getTimeInStage);
 
-	useEffect(() => {
-		let isMounted = true;
+	const rows = (query) => (Array.isArray(query.data) ? query.data : []);
+	const summary = summaryQuery.data || {};
+	const dealsByMonth = rows(dealsQuery);
+	const pipelineDistribution = rows(pipelineQuery);
+	const brokerPerformance = rows(brokerQuery);
+	const propertyByCity = rows(cityQuery);
+	const funnel = rows(funnelQuery);
+	const timeInStage = rows(timeQuery);
 
-		const loadDashboard = async () => {
-			setLoading(true);
-			setError("");
-
-			try {
-				const [
-					summaryResponse,
-					dealsResponse,
-					pipelineResponse,
-					brokerResponse,
-					cityResponse,
-					funnelResponse,
-					timeResponse,
-				] = await Promise.all([
-					getSummary(),
-					getDealsByMonth(),
-					getPipelineDistribution(),
-					getBrokerPerformance(),
-					getPropertyByCity(),
-					getFunnel(),
-					getTimeInStage(),
-				]);
-
-				if (!isMounted) return;
-
-				setSummary(summaryResponse.data || {});
-				setDealsByMonth(
-					Array.isArray(dealsResponse.data) ? dealsResponse.data : [],
-				);
-				setPipelineDistribution(
-					Array.isArray(pipelineResponse.data) ? pipelineResponse.data : [],
-				);
-				setBrokerPerformance(
-					Array.isArray(brokerResponse.data) ? brokerResponse.data : [],
-				);
-				setPropertyByCity(
-					Array.isArray(cityResponse.data) ? cityResponse.data : [],
-				);
-				setFunnel(
-					Array.isArray(funnelResponse.data) ? funnelResponse.data : [],
-				);
-				setTimeInStage(
-					Array.isArray(timeResponse.data) ? timeResponse.data : [],
-				);
-			} catch (err) {
-				if (!isMounted) return;
-				setError(
-					err.response?.data?.message || "Failed to load dashboard analytics.",
-				);
-			} finally {
-				if (isMounted) setLoading(false);
-			}
-		};
-
-		loadDashboard();
-
-		return () => {
-			isMounted = false;
-		};
-	}, []);
+	// A card is either loading, failed (with a retry), or has data.
+	const loading = summaryQuery.isPending;
+	const failed = (query) => <ErrorState error={query.error} onRetry={query.refetch} />;
 
 	const stats = [
 		{
 			label: "Total Clients",
-			value: summary?.totalClients,
+			value: summary.totalClients,
 			borderClass: "border-l-blue-500",
 		},
 		{
 			label: "Total Properties",
-			value: summary?.totalProperties,
+			value: summary.totalProperties,
 			hint:
 				summary?.activeListings != null ?
 					`${formatNumber(summary.activeListings)} available`
@@ -145,12 +98,12 @@ const Dashboard = () => {
 		},
 		{
 			label: "Closed Deals",
-			value: summary?.closedDeals,
+			value: summary.closedDeals,
 			borderClass: "border-l-orange-500",
 		},
 		{
 			label: "Pending Approvals",
-			value: summary?.pendingApprovals,
+			value: summary.pendingApprovals,
 			hint:
 				summary?.activeBrokers != null ?
 					`${formatNumber(summary.activeBrokers)} active brokers`
@@ -198,14 +151,7 @@ const Dashboard = () => {
 					</div>
 				</header>
 
-				{error ?
-					<div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-						<div className="flex items-center gap-2">
-							<AlertCircle size={16} />
-							{error}
-						</div>
-					</div>
-				:	null}
+				{summaryQuery.isError ? failed(summaryQuery) : null}
 
 				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 					{stats.map((stat) => (
@@ -218,7 +164,7 @@ const Dashboard = () => {
 									{stat.label}
 								</p>
 								<h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
-									{loading ? "--" : formatNumber(stat.value)}
+									{loading ? "--" : summaryQuery.isError ? "—" : formatNumber(stat.value)}
 								</h2>
 								{stat.hint && !loading ?
 									<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -243,7 +189,9 @@ const Dashboard = () => {
 							</div>
 						</div>
 						<div className="h-80">
-							{loading ?
+							{dealsQuery.isError ?
+								failed(dealsQuery)
+							: dealsQuery.isPending ?
 								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading deals chart...
 								</div>
@@ -296,7 +244,9 @@ const Dashboard = () => {
 							</div>
 						</div>
 						<div className="h-80">
-							{loading ?
+							{pipelineQuery.isError ?
+								failed(pipelineQuery)
+							: pipelineQuery.isPending ?
 								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading pipeline chart...
 								</div>
@@ -344,7 +294,9 @@ const Dashboard = () => {
 							in a stage before moving on.
 						</p>
 					</div>
-					{loading ?
+					{funnelQuery.isError ?
+						failed(funnelQuery)
+					: funnelQuery.isPending ?
 						<p className="text-sm text-slate-500 dark:text-slate-400">
 							Loading funnel...
 						</p>
@@ -411,13 +363,19 @@ const Dashboard = () => {
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
-										{loading ?
+										{brokerQuery.isPending ?
 											<tr>
 												<td
 													className="px-4 py-6 text-slate-500 dark:text-slate-400"
 													colSpan={5}
 												>
 													Loading broker stats...
+												</td>
+											</tr>
+										: brokerQuery.isError ?
+											<tr>
+												<td className="px-4 py-4" colSpan={5}>
+													{failed(brokerQuery)}
 												</td>
 											</tr>
 										: brokerPerformance.length === 0 ?
@@ -469,7 +427,9 @@ const Dashboard = () => {
 							</div>
 						</div>
 						<div className="h-[25rem]">
-							{loading ?
+							{cityQuery.isError ?
+								failed(cityQuery)
+							: cityQuery.isPending ?
 								<div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
 									Loading city chart...
 								</div>
