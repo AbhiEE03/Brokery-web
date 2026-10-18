@@ -144,7 +144,8 @@ const ClientDetail = () => {
 			// Approval-pending fields snap back to their current value until approved.
 			setFormData(toForm(updatedClient));
 			setInitialForm(toForm(updatedClient));
-			queryClient.invalidateQueries({ queryKey: ["history", id] });
+			// The list rows, the approval queue and the board's "awaiting approval" badges all show this client.
+				["history", "clients", "changeRequests"].forEach((key) => queryClient.invalidateQueries({ queryKey: key === "history" ? [key, id] : [key] }));
 		} catch (err) {
 			setSaveMessage(messageFrom(err, "Unable to update client."));
 		} finally {

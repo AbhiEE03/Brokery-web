@@ -111,6 +111,19 @@ describe("client edit form", () => {
 			"/clients/c1",
 		);
 
+	test("saving refreshes the cached lists, so Back to Clients doesn't show the old stage", async () => {
+		const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+		renderDetail();
+		const phone = await screen.findByDisplayValue("9000000125");
+		await userEvent.clear(phone);
+		await userEvent.type(phone, "9000000999");
+		await userEvent.click(screen.getByRole("button", { name: /save changes/i }));
+		await screen.findByText("Changes saved");
+		const keys = invalidate.mock.calls.map(([arg]) => arg.queryKey[0]);
+		expect(keys).toEqual(expect.arrayContaining(["clients", "changeRequests", "history"]));
+		invalidate.mockRestore();
+	});
+
 	test("sends only the field the broker changed", async () => {
 		renderDetail();
 		const phone = await screen.findByDisplayValue("9000000125");

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -13,7 +13,7 @@ import OwnershipClaims from "../pages/OwnershipClaims";
 import Properties from "../pages/Properties";
 import Pagination from "../components/ui/Pagination";
 
-vi.mock("../api/axiosInstance", () => ({ default: { get: vi.fn() } }));
+vi.mock("../api/axiosInstance", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock("../hooks/useToast", () => ({ default: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
 
 const Where = () => <p data-testid="where">{useLocation().pathname + useLocation().search}</p>;
@@ -108,5 +108,22 @@ describe("a page past the end is clamped, never an empty trap", () => {
 		renderAt(<Properties />, "/properties?page=2&q=villa&type=flat");
 		await waitFor(() => expect(callsTo("/properties").length).toBeGreaterThan(0));
 		expect(callsTo("/properties")[0]).toMatchObject({ page: 2, search: "villa", type: "flat", limit: 12 });
+	});
+});
+
+describe("approving a change refreshes the lists it changed", () => {
+	test("clients and properties are re-fetched, not served stale from cache", async () => {
+		const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+		vi.mocked(api.get).mockResolvedValue(
+			listOf([{ _id: "r1", entityType: "client", status: "pending", entityId: { _id: "c1", name: "Rahul Sinha", clientCode: "CL-1" }, requestedBy: { name: "U" }, changes: [{ field: "pipelineStage", oldValue: "lead", newValue: "closed" }], createdAt: "2026-09-29T10:00:00Z" }], { page: 1, pages: 1, total: 1 }),
+		);
+		vi.mocked(api.post).mockResolvedValue({ data: { success: true } });
+		renderAt(<ChangeRequests />, "/change-requests");
+		await userEvent.click(await screen.findByRole("button", { name: /^approve$/i }));
+		await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^approve$/i }));
+		await waitFor(() => expect(api.post).toHaveBeenCalled());
+		const keys = invalidate.mock.calls.map(([arg]) => arg.queryKey[0]);
+		expect(keys).toEqual(expect.arrayContaining(["changeRequests", "clients", "properties"]));
+		invalidate.mockRestore();
 	});
 });

@@ -136,6 +136,8 @@ const PropertyDetail = () => {
 			setInitialForm(toForm(updatedProperty));
 			setNotice(response.message || "");
 			queryClient.invalidateQueries({ queryKey: ["history", id] });
+			queryClient.invalidateQueries({ queryKey: ["properties"] });
+			queryClient.invalidateQueries({ queryKey: ["changeRequests"] });
 		} catch (err) {
 			setNotice(messageFrom(err, "Unable to save property."));
 		} finally {

@@ -31,6 +31,9 @@ export const useChangeRequestDecision = () => {
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: ["changeRequests"] });
 			queryClient.invalidateQueries({ queryKey: ["history"] });
+			// An approved change alters the record itself, so the lists showing it are stale too.
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+			queryClient.invalidateQueries({ queryKey: ["properties"] });
 		},
 	});
 };
